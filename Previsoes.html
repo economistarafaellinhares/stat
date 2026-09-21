@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMAIC Studio — Painel Estatístico Seis Sigma</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F6;
+  --surface:#FFFFFF;
+  --ink:#12203A;
+  --ink-soft:#51617C;
+  --border:#D7DCE6;
+  --measure:#0E7C86;
+  --analyze:#6D4AFF;
+  --improve:#C77A1F;
+  --control:#1E8F5F;
+  --forecast:#8E44AD;
+  --danger:#C0392B;
+  --warning:#B9770E;
+  --success:#1E8F5F;
+  --accent:var(--measure);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:14px;
+  line-height:1.5;
+}
+h1,h2,h3,h4,.brand,.tab-btn,.section-title{font-family:'Space Grotesk',sans-serif;}
+::selection{background:var(--accent);color:#fff;}
+
+header.app-header{
+  background:var(--ink);
+  color:#fff;
+  padding:22px 28px 18px;
+  border-bottom:4px solid var(--measure);
+}
+.header-row{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;}
+.brand{font-size:22px;font-weight:700;}
+.brand small{display:block;font-size:11px;color:#9DB0CE;font-weight:400;margin-top:2px;}
+.project-field{display:flex;flex-direction:column;gap:4px;}
+.project-field label{font-size:10px;color:#9DB0CE;text-transform:uppercase;letter-spacing:.08em;}
+.project-field input{
+  background:transparent;border:none;border-bottom:1px solid #3C4A63;
+  color:#fff;font-family:'Space Grotesk',sans-serif;font-size:15px;padding:4px 2px;min-width:280px;
+}
+.project-field input:focus{outline:none;border-bottom-color:var(--measure);}
+
+.upload-bar{max-width:1240px;margin:20px auto 0;padding:0 24px;}
+.upload-zone{
+  background:var(--surface);border:1.5px dashed var(--border);border-radius:6px;
+  padding:18px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;transition:.15s;cursor:pointer;
+}
+.upload-zone:hover{border-color:var(--measure);}
+.upload-zone.drag{border-color:var(--measure);background:#F1FAFA;}
+.upload-zone .icon{
+  width:40px;height:40px;flex:0 0 auto;border-radius:6px;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;color:var(--measure);font-size:20px;
+}
+.upload-zone .text strong{display:block;font-family:'Space Grotesk',sans-serif;font-size:14px;}
+.upload-zone .text span{color:var(--ink-soft);font-size:12px;}
+.upload-zone input[type=file]{display:none;}
+
+.status-banner{margin-top:10px;padding:9px 14px;border-radius:4px;font-size:12.5px;display:none;}
+.status-ok{background:#E7F6EF;color:#1E8F5F;border:1px solid #B9E5CE;display:block;}
+.status-error{background:#FBEAE8;color:var(--danger);border:1px solid #F0C6C0;display:block;}
+.status-load{background:#E8F4F8;color:var(--measure);border:1px solid #B6D8E2;display:block;}
+
+.progress-container{margin-top:8px;background:var(--border);border-radius:4px;overflow:hidden;height:8px;display:none;}
+.progress-fill{background:var(--measure);height:100%;width:0%;transition:width 0.2s ease;}
+
+.preview-wrap{margin-top:14px;overflow:auto;max-height:220px;border:1px solid var(--border);border-radius:6px;display:none;background:#fff;}
+.upload-zone.loaded ~ .preview-wrap{display:block;}
+table.preview-table{border-collapse:collapse;width:100%;font-size:11.5px;}
+.preview-table th{background:var(--bg);position:sticky;top:0;text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.preview-table td{padding:5px 10px;border-bottom:1px solid #EEF1F6;white-space:nowrap;}
+
+.tabs-nav{max-width:1240px;margin:22px auto 0;padding:0 24px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);justify-content:space-between;align-items:center;}
+.tab-buttons{display:flex;gap:4px;flex-wrap:wrap;}
+.tab-btn{
+  border:none;background:transparent;padding:11px 18px;font-size:13px;font-weight:600;
+  color:var(--ink-soft);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;
+}
+.tab-btn.active{color:var(--ink);border-bottom-color:var(--tab-color,var(--measure));}
+.tab-btn .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:var(--tab-color,var(--measure));}
+
+.actions-top{display:flex;gap:10px;padding-bottom:6px;}
+.btn-secondary{
+  border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:4px;
+  padding:7px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;transition:.12s;font-weight:600;
+}
+.btn-secondary:hover{border-color:var(--ink);}
+
+main{max-width:1240px;margin:0 auto;padding:24px;display:none;gap:24px;}
+main.active{display:grid;grid-template-columns:280px 1fr;}
+@media(max-width:900px){main.active{grid-template-columns:1fr;}}
+
+.checklist{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;align-self:start;position:sticky;top:20px;max-height:85vh;overflow-y:auto;}
+.checklist h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin:16px 0 8px;}
+.checklist h3:first-child{margin-top:0;}
+.tool-item{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-radius:5px;cursor:pointer;}
+.tool-item:hover{background:var(--bg);}
+.tool-item input{margin-top:3px;accent-color:var(--tab-color,var(--measure));}
+.tool-item span{font-size:12.5px;line-height:1.35;}
+
+.panels{display:flex;flex-direction:column;gap:16px;}
+.tool-panel{display:none;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--tab-color,var(--measure));border-radius:8px;padding:20px 22px;}
+.tool-panel.open{display:block;}
+.tool-panel h4{margin:0 0 4px;font-size:16px;}
+.tool-panel .desc{color:var(--ink-soft);font-size:12.5px;margin-bottom:14px;}
+
+.controls-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);}
+.field select,.field input[type=number],.field input[type=text]{
+  border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;min-width:150px;background:#fff;
+}
+.btn{
+  border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:4px;
+  padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;cursor:pointer;transition:.12s;
+}
+.btn:hover{opacity:.85;}
+
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;}
+.metric-card{background:var(--bg);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;}
+.metric-value{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:var(--ink);word-break:break-word;}
+.metric-label{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
+
+.chart-box{height:320px;margin-bottom:14px;position:relative;}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:720px){.chart-row{grid-template-columns:1fr;}}
+
+.interp-box{background:#F5F7FB;border-left:3px solid var(--tab-color,var(--measure));border-radius:4px;padding:12px 14px;font-size:12.5px;color:var(--ink);min-height:18px;margin-top:10px;}
+.interp-box:empty::before{content:"A interpretação estatística automática aparecerá aqui após executar a análise.";color:var(--ink-soft);}
+
+.result-table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:12px;}
+.result-table th{background:var(--bg);text-align:left;padding:8px;border-bottom:1px solid var(--border);}
+.result-table td{padding:7px 8px;border-bottom:1px solid #EEF1F6;}
+
+/* Modal Relatório */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(18,32,58,0.6);display:none;justify-content:center;align-items:center;z-index:1000;padding:20px;}
+.modal-content{background:var(--surface);border-radius:8px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;padding:30px;box-shadow:0 10px 30px rgba(0,0,0,0.2);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px;}
+.modal-header h3{margin:0;font-size:20px;}
+.modal-close{background:transparent;border:none;font-size:18px;cursor:pointer;color:var(--ink-soft);}
+.report-section{margin-bottom:20px;}
+.report-section h4{margin:0 0 8px;color:var(--measure);border-bottom:1px solid var(--border);padding-bottom:4px;}
+
+footer{text-align:center;color:var(--ink-soft);font-size:11px;padding:26px 0 34px;}
+/* Relatório: análises em tela + exportação PDF */
+.report-meta p{margin:3px 0;font-size:12.5px;}
+.report-tool{margin:0 0 20px;overflow-x:auto;}
+.report-tool h5{font-family:'Space Grotesk',sans-serif;font-size:14px;margin:14px 0 6px;color:var(--ink);}
+.report-params{font-size:11.5px;color:var(--ink-soft);background:#F5F7FB;border-radius:4px;padding:6px 10px;margin-bottom:10px;}
+.report-chart-wrap{margin-bottom:12px;}
+.report-chart-wrap img{display:block;width:100%;height:auto;}
+.report-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+@media print{
+  @page{size:A4;margin:14mm 12mm;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  html,body{background:#fff !important;}
+  body > *:not(#report-modal){display:none !important;}
+  #report-modal{position:static !important;display:block !important;width:auto !important;height:auto !important;padding:0 !important;background:none !important;}
+  .modal-content{max-width:none !important;width:auto !important;max-height:none !important;overflow:visible !important;box-shadow:none !important;padding:0 !important;border-radius:0 !important;}
+  .modal-close,.modal-actions{display:none !important;}
+  .report-tool{overflow:visible;}
+  .report-tool h5,.report-section h4{break-after:avoid;}
+  .metric-card,.report-chart-wrap,.interp-box,.result-table tr{break-inside:avoid;}
+  .result-table{font-size:10px;}
+}
+</style>
+</head>
+<body>
+<div class="upload-bar">
+  <label class="upload-zone" id="upload-zone" for="csvFile">
+    <div class="icon">⇪</div>
+    <div class="text">
+      <strong>Carregar dados do processo (.csv / separadores flexíveis)</strong>
+      <span>Processamento 100% local no navegador via WebAssembly (Pyodide)</span>
+    </div>
+    <input type="file" id="csvFile" accept=".csv,.txt">
+  </label>
+  <div class="status-banner" id="status-banner"></div>
+  <div class="progress-container" id="progress-container">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div class="preview-wrap"><div id="data-preview"></div></div>
+</div>
+
+<nav class="tabs-nav" id="tabs-nav">
+  <div class="tab-buttons">
+    <button class="tab-btn active" data-tab="forecast" style="--tab-color:#8E44AD;"><span class="dot"></span>Previsões</button>
+  </div>
+  <div class="actions-top">
+    <button class="btn-secondary" onclick="openReportModal()">📄 Gerar Relatório Executivo</button>
+  </div>
+</nav>
+
+<!-- FORECAST -->
+<main class="tab-content active" id="tab-forecast" style="--tab-color:#8E44AD;">
+  <aside class="checklist">
+    <h3>Séries Temporais & Previsão</h3>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts" checked><span>Modelagem & Projeção Futura</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-stat"><span>Testes de Estacionaridade (ADF & KPSS)</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-pp"><span>Teste Phillips-Perron (PP)</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-acfpacf"><span>ACF e PACF (Autocorrelação)</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-dw"><span>Teste de Durbin-Watson</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-mk"><span>Mann-Kendall & Sen’s Slope</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-chow"><span>Quebra Estrutural de Chow</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-cusum"><span>Teste CUSUM</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-resid"><span>Diagnóstico de Resíduos (JB & BP)</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-ljung"><span>Teste de Ljung-Box (Ruído Branco)</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-ts-decomp"><span>Decomposição Sazonal (Tendência, Sazonalidade, Ruído)</span></label>
+  </aside>
+  <div class="panels">
+    <section class="tool-panel open" id="panel-ts">
+      <h4>Suavização Exponencial (Holt-Winters) & ARIMA/SARIMA</h4>
+      <div class="desc">Projeção de tendências futuras e sazonalidade com cálculo automático de bandas de confiança (95%) e indicadores de erro.</div>
+      <div class="controls-row">
+        <div class="field"><label>Coluna de Data / Tempo</label><select id="ts-date-col" class="data-select" data-kind="all"></select></div>
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-val-col" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Modelo</label><select id="ts-model-type"><option value="hw">Holt-Winters (Suavização Exponencial)</option><option value="arima">ARIMA / SARIMA</option></select></div>
+        <div class="field"><label>Horizontes de Previsão (Passos)</label><input type="number" id="ts-steps" value="12" min="1" max="60"></div>
+        <div class="field"><label>Período Sazonal (HW)</label><input type="number" id="ts-seasonal" value="12" min="1" max="36"></div>
+        <div class="field"><label>ARIMA (p, d, q)</label><input type="text" id="ts-arima-order" value="1,1,1" placeholder="p,d,q"></div>
+        <button class="btn" onclick="runTimeSeriesForecast()">Executar Previsão</button>
+      </div>
+      <div class="metrics-grid" id="ts-metrics"></div>
+      <div class="chart-box"><canvas id="ts-chart"></canvas></div>
+      <div class="interp-box" id="ts-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-stat">
+      <h4>Testes de Estacionaridade (Augmented Dickey-Fuller & KPSS)</h4>
+      <div class="desc">Verifica se a série temporal possui raiz unitária (não estacionária) ou se é estacionária em torno de uma média.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-stat-col" class="data-select" data-kind="numeric"></select></div>
+        <button class="btn" onclick="runStationarityTests()">Executar Testes de Estacionaridade</button>
+      </div>
+      <div class="metrics-grid" id="ts-stat-metrics"></div>
+      <div id="ts-stat-table-container"></div>
+      <div class="interp-box" id="ts-stat-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-pp">
+      <h4>Teste Phillips-Perron (PP) de Raiz Unitária</h4>
+      <div class="desc">Teste de raiz unitária robusto a heteroscedasticidade e autocorrelação de ordem superior nos resíduos.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-pp-col" class="data-select" data-kind="numeric"></select></div>
+        <button class="btn" onclick="runPhillipsPerron()">Executar Teste Phillips-Perron</button>
+      </div>
+      <div class="metrics-grid" id="ts-pp-metrics"></div>
+      <div class="interp-box" id="ts-pp-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-acfpacf">
+      <h4>Função de Autocorrelação (ACF) e Autocorrelação Parcial (PACF)</h4>
+      <div class="desc">Avalia a correlação da série com seus próprios defasados (lags) para identificação da estrutura AR/MA.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-acfpacf-col" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Número de Lags</label><input type="number" id="ts-acfpacf-lags" value="15" min="2" max="40"></div>
+        <button class="btn" onclick="runACFPACF()">Gerar ACF & PACF</button>
+      </div>
+      <div class="metrics-grid" id="ts-acfpacf-metrics"></div>
+      <div class="chart-box"><canvas id="ts-acfpacf-chart"></canvas></div>
+      <div class="interp-box" id="ts-acfpacf-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-dw">
+      <h4>Teste de Durbin-Watson (Autocorrelação Residual)</h4>
+      <div class="desc">Mede a autocorrelação de primeira ordem nos resíduos de um modelo temporal ou de regressão.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-dw-col" class="data-select" data-kind="numeric"></select></div>
+        <button class="btn" onclick="runDurbinWatson()">Executar Durbin-Watson</button>
+      </div>
+      <div class="metrics-grid" id="ts-dw-metrics"></div>
+      <div class="interp-box" id="ts-dw-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-mk">
+      <h4>Teste de Tendência de Mann-Kendall & Sen’s Slope</h4>
+      <div class="desc">Teste não paramétrico para identificar tendências monotônicas de longo prazo e estimar a magnitude da inclinação (Sen's Slope).</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-mk-col" class="data-select" data-kind="numeric"></select></div>
+        <button class="btn" onclick="runMannKendall()">Executar Mann-Kendall & Sen</button>
+      </div>
+      <div class="metrics-grid" id="ts-mk-metrics"></div>
+      <div class="interp-box" id="ts-mk-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-chow">
+      <h4>Teste de Quebra Estrutural de Chow</h4>
+      <div class="desc">Verifica se há mudança estatisticamente significativa nos parâmetros de regressão/tendência em um ponto específico do tempo.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-chow-col" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Índice do Ponto de Quebra</label><input type="number" id="ts-chow-idx" value="30" min="5" max="500"></div>
+        <button class="btn" onclick="runChowTest()">Executar Teste de Chow</button>
+      </div>
+      <div class="metrics-grid" id="ts-chow-metrics"></div>
+      <div class="interp-box" id="ts-chow-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-cusum">
+      <h4>Teste CUSUM de Estabilidade de Parâmetros</h4>
+      <div class="desc">Avalia a estabilidade de parâmetros e detecção de rupturas estruturais baseada em somas cumulativas de resíduos recursivos/OLS.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-cusum-col" class="data-select" data-kind="numeric"></select></div>
+        <button class="btn" onclick="runCusumTest()">Executar Teste CUSUM</button>
+      </div>
+      <div class="metrics-grid" id="ts-cusum-metrics"></div>
+      <div class="interp-box" id="ts-cusum-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-resid">
+      <h4>Diagnóstico de Resíduos (Jarque-Bera & Breusch-Pagan)</h4>
+      <div class="desc">Valida simultaneamente a normalidade (Jarque-Bera) e a homocedasticidade (Breusch-Pagan) dos resíduos do modelo.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-resid-col" class="data-select" data-kind="numeric"></select></div>
+        <button class="btn" onclick="runResidualDiagnostics()">Executar Diagnósticos</button>
+      </div>
+      <div class="metrics-grid" id="ts-resid-metrics"></div>
+      <div class="interp-box" id="ts-resid-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-ljung">
+      <h4>Teste de Ljung-Box (Autocorrelação Residual / Ruído Branco)</h4>
+      <div class="desc">Testa a hipótese nula de que os resíduos/série são independentemente distribuídos (ruído branco) até um determinado lag.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-ljung-col" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Lag (Atraso)</label><input type="number" id="ts-ljung-lag" value="10" min="1" max="50"></div>
+        <button class="btn" onclick="runLjungBoxTest()">Executar Teste Ljung-Box</button>
+      </div>
+      <div class="metrics-grid" id="ts-ljung-metrics"></div>
+      <div class="interp-box" id="ts-ljung-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-ts-decomp">
+      <h4>Decomposição Sazonal de Séries Temporais (Aditiva)</h4>
+      <div class="desc">Separa a série temporal em componentes de Tendência, Sazonalidade e Resíduos (Aleatório).</div>
+      <div class="controls-row">
+        <div class="field"><label>Coluna de Data / Tempo</label><select id="ts-decomp-date" class="data-select" data-kind="all"></select></div>
+        <div class="field"><label>Variável de Resposta (Y)</label><select id="ts-decomp-col" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Período Sazonal</label><input type="number" id="ts-decomp-period" value="12" min="2" max="36"></div>
+        <button class="btn" onclick="runDecomposition()">Executar Decomposição</button>
+      </div>
+      <div class="metrics-grid" id="ts-decomp-metrics"></div>
+      <div class="chart-box" style="height:360px;"><canvas id="ts-decomp-chart"></canvas></div>
+      <div class="interp-box" id="ts-decomp-interp"></div>
+    </section>
+  </div>
+</main>
+
+<!-- Modal Relatório -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="report-title">Relatório Executivo Seis Sigma</h3>
+      <button class="modal-close" onclick="closeReportModal()">✕</button>
+    </div>
+    <div id="report-body">
+      <p>Gerando relatório consolidado do projeto...</p>
+    </div>
+    <div class="modal-actions" style="margin-top:20px;text-align:right;">
+      <button class="btn" onclick="exportReportPDF()">📄 Exportar PDF</button>
+    </div>
+  </div>
+</div>
+
+<footer>DMAIC Studio · Motor Estatístico Python via Pyodide (NumPy, Pandas, SciPy, Statsmodels)</footer>
+
+<script>
+let globalData = [];
+let columns = [];
+let numericCols = [];
+let categoricalCols = [];
+let pyodide = null;
+window.__charts = {};
+
+async function initPyodideEngine() {
+  const banner = document.getElementById('status-banner');
+  const progressContainer = document.getElementById('progress-container');
+  const progressFill = document.getElementById('progress-fill');
+  
+  banner.innerText = "Carregando ambiente Python (Pyodide WebAssembly)...";
+  banner.className = "status-banner status-load";
+  if(progressContainer) progressContainer.style.display = 'block';
+
+  let progress = 10;
+  if(progressFill) progressFill.style.width = progress + '%';
+
+  pyodide = await loadPyodide({
+    messageCallback: (msg) => {
+      banner.innerText = `Pyodide: ${msg}`;
+      progress = Math.min(progress + 15, 50);
+      if(progressFill) progressFill.style.width = progress + '%';
+    }
+  });
+
+  banner.innerText = "Carregando bibliotecas científicas (NumPy, Pandas, SciPy, Statsmodels)...";
+  if(progressFill) progressFill.style.width = '60%';
+
+  await pyodide.loadPackage(["numpy", "pandas", "scipy", "statsmodels"], {
+    messageCallback: (msg) => {
+      banner.innerText = `Pacotes: ${msg}`;
+      progress = Math.min(progress + 15, 95);
+      if(progressFill) progressFill.style.width = progress + '%';
+    }
+  });
+
+  if(progressFill) progressFill.style.width = '100%';
+  banner.innerText = "Ambiente Python e pacotes estatísticos carregados com sucesso!";
+  banner.className = "status-banner status-ok";
+  setTimeout(() => {
+    banner.style.display = 'none';
+    if(progressContainer) progressContainer.style.display = 'none';
+  }, 3000);
+
+  await pyodide.runPythonAsync(`
+    import json
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+    import statsmodels.api as sm
+    import statsmodels.formula.api as smf
+    from statsmodels.stats.anova import anova_lm
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+    from statsmodels.stats.multicomp import pairwise_tukeyhsd
+    from statsmodels.stats.proportion import proportions_ztest
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+    from statsmodels.tsa.arima.model import ARIMA
+    from statsmodels.tsa.stattools import adfuller, kpss, acf, pacf
+    from statsmodels.stats.diagnostic import acorr_ljungbox, het_breuschpagan, breaks_cusumolsresid
+    from statsmodels.stats.stattools import durbin_watson
+    from statsmodels.tsa.seasonal import seasonal_decompose
+
+    def py_stationarity(data_json, col):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna()
+        if len(s) < 10: return json.dumps({"error": "Dados insuficientes"})
+        adf_stat, adf_p, _, _, adf_crit, _ = adfuller(s)
+        kpss_stat, kpss_p, kpss_lags, kpss_crit = kpss(s, regression='c', nlags='auto')
+        return json.dumps({
+            "adf_stat": float(adf_stat), "adf_p": float(adf_p),
+            "kpss_stat": float(kpss_stat), "kpss_p": float(kpss_p)
+        })
+
+    def py_phillips_perron(data_json, col):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna()
+        if len(s) < 5: return json.dumps({"error": "Dados insuficientes"})
+        y = s.values
+        n = len(y)
+        y_lag = y[:-1]
+        y_curr = y[1:]
+        X = sm.add_constant(y_lag)
+        model = sm.OLS(y_curr, X).fit()
+        rho_coef = model.params[1]
+        res = model.resid
+        lags = int(np.floor(4 * (n / 100)**(2/9)))
+        gamma0 = np.dot(res, res) / n
+        gamma_sum = sum(2 * (1.0 - j / (lags + 1.0)) * np.dot(res[j:], res[:-j]) / n for j in range(1, lags + 1))
+        robust = model.get_robustcov_results(cov_type='HAC', maxlags=lags)
+        cov_hac = robust.cov_params()
+        se_hac = float(np.sqrt(cov_hac[1,1]))
+        t_stat = (rho_coef - 1.0) / se_hac
+        p_val = float(2.0 * (1.0 - stats.norm.cdf(abs(t_stat))))
+        return json.dumps({"stat": float(t_stat), "p": float(p_val), "lags": lags, "n": n})
+
+    def py_acfpacf(data_json, col, nlags):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna()
+        nl = min(int(nlags), len(s) // 2 - 1)
+        if nl < 1: nl = min(10, len(s)-1)
+        acf_vals = acf(s, nlags=nl, fft=False)
+        pacf_vals = pacf(s, nlags=nl, method='yw')
+        ci = 1.96 / np.sqrt(len(s))
+        return json.dumps({"lags": list(range(nl + 1)), "acf": acf_vals.tolist(), "pacf": pacf_vals.tolist(), "ci": float(ci)})
+
+    def py_durbin_watson(data_json, col):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna()
+        X = sm.add_constant(np.arange(len(s)))
+        model = sm.OLS(s, X).fit()
+        dw_stat = float(durbin_watson(model.resid))
+        return json.dumps({"dw": dw_stat, "n": len(s)})
+
+    def py_mann_kendall_sens(data_json, col):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna().values
+        n = len(s)
+        if n < 3: return json.dumps({"error": "Dados insuficientes"})
+        s_val = sum(np.sign(s[j] - s[i]) for i in range(n - 1) for j in range(i + 1, n))
+        unique_vals, counts = np.unique(s, return_counts=True)
+        var_s = (n * (n - 1) * (2 * n + 5)) / 18.0
+        for t_p in counts:
+            if t_p > 1:
+                var_s -= (t_p * (t_p - 1) * (2 * t_p + 5)) / 18.0
+        z = 0.0
+        if s_val > 0: z = (s_val - 1) / np.sqrt(var_s) if var_s > 0 else 0
+        elif s_val < 0: z = (s_val + 1) / np.sqrt(var_s) if var_s > 0 else 0
+        p_val = float(2.0 * (1.0 - stats.norm.cdf(abs(z))))
+        slopes = [(s[j] - s[i]) / (j - i) for i in range(n - 1) for j in range(i + 1, n)]
+        sens_slope = float(np.median(slopes)) if len(slopes) > 0 else 0.0
+        trend_desc = "Crescente" if z > 0 and p_val < 0.05 else ("Decrescente" if z < 0 and p_val < 0.05 else "Sem tendência estatisticamente significativa")
+        return json.dumps({"s": float(s_val), "z": float(z), "p": float(p_val), "sens_slope": sens_slope, "trend": trend_desc})
+
+    def py_chow_test(data_json, col, break_idx):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna().values
+        n = len(s)
+        idx = int(break_idx)
+        if idx <= 5 or idx >= n - 5: idx = n // 2
+        time_arr = np.arange(n)
+        X = sm.add_constant(time_arr)
+        model_r = sm.OLS(s, X).fit()
+        rss_r = model_r.ssr
+        X1, s1 = X[:idx], s[:idx]
+        X2, s2 = X[idx:], s[idx:]
+        model_1 = sm.OLS(s1, X1).fit()
+        model_2 = sm.OLS(s2, X2).fit()
+        rss_ur = model_1.ssr + model_2.ssr
+        k = X.shape[1]
+        numerator = (rss_r - rss_ur) / k
+        denominator = rss_ur / (n - 2 * k) if (n - 2 * k) > 0 else 1e-6
+        f_stat = float(numerator / denominator)
+        p_val = float(1.0 - stats.f.cdf(f_stat, k, n - 2 * k)) if (n - 2 * k) > 0 else 1.0
+        return json.dumps({"f_stat": f_stat, "p": p_val, "break_index": idx})
+
+    def py_cusum_test(data_json, col):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna().values
+        if len(s) < 10: return json.dumps({"error": "Dados insuficientes"})
+        X = sm.add_constant(np.arange(len(s)))
+        model = sm.OLS(s, X).fit()
+        cusum_res = breaks_cusumolsresid(model.resid)
+        sup_b, p_val = cusum_res[0], cusum_res[1]
+        return json.dumps({"sup_b": float(sup_b), "p": float(p_val)})
+
+    def py_residual_diagnostics(data_json, col):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna().values
+        if len(s) < 10: return json.dumps({"error": "Dados insuficientes"})
+        X = sm.add_constant(np.arange(len(s)))
+        model = sm.OLS(s, X).fit()
+        resid = model.resid
+        jb_stat, jb_p = stats.jarque_bera(resid)
+        bp_stat, bp_p, _, _ = het_breuschpagan(resid, X)
+        return json.dumps({"jb_stat": float(jb_stat), "jb_p": float(jb_p), "bp_stat": float(bp_stat), "bp_p": float(bp_p)})
+
+    def py_ljungbox(data_json, col, lag):
+        df = pd.DataFrame(json.loads(data_json))
+        s = pd.to_numeric(df[col], errors='coerce').dropna()
+        res = acorr_ljungbox(s, lags=[int(lag)], return_df=True)
+        return json.dumps({"stat": float(res['lb_stat'].iloc[0]), "p": float(res['lb_pvalue'].iloc[0])})
+
+    def py_decomposition(data_json, date_col, val_col, period):
+        df = pd.DataFrame(json.loads(data_json))
+        sub = df[[date_col, val_col]].dropna().copy()
+        sub[val_col] = pd.to_numeric(sub[val_col], errors='coerce')
+        sub = sub.dropna()
+        if len(sub) < int(period) * 2: return json.dumps({"error": "Dados insuficientes para decomposição sazonal."})
+        vals = sub[val_col].values
+        dates = sub[date_col].astype(str).tolist()
+        result = seasonal_decompose(vals, model='additive', period=int(period))
+        return json.dumps({
+            "dates": dates,
+            "trend": [None if np.isnan(x) else float(x) for x in result.trend],
+            "seasonal": [None if np.isnan(x) else float(x) for x in result.seasonal],
+            "resid": [None if np.isnan(x) else float(x) for x in result.resid],
+            "observed": [float(x) for x in result.observed]
+        })
+
+    def py_forecast(data_json, date_col, val_col, model_type, steps, seasonal_period, arima_order):
+        df = pd.DataFrame(json.loads(data_json))
+        sub = df[[date_col, val_col]].dropna().copy()
+        sub[val_col] = pd.to_numeric(sub[val_col], errors='coerce')
+        sub = sub.dropna()
+        if len(sub) < 5: return json.dumps({"error": "Dados insuficientes para previsão."})
+        history = sub[val_col].values
+        hist_dates = sub[date_col].astype(str).tolist()
+        
+        future_steps = int(steps)
+        if model_type == 'hw':
+            try:
+                model = ExponentialSmoothing(history, seasonal='add', seasonal_periods=int(seasonal_period)).fit()
+                pred = model.forecast(future_steps)
+                fitted = model.fittedvalues
+                valid = np.isfinite(history) & np.isfinite(fitted) & (history != 0)
+                mape = float(np.mean(np.abs((history[valid] - fitted[valid]) / history[valid])) * 100) if np.any(valid) else 0.0
+            except Exception as e:
+                model = ExponentialSmoothing(history, trend='add').fit()
+                pred = model.forecast(future_steps)
+                fitted = model.fittedvalues
+                valid = np.isfinite(history) & np.isfinite(fitted) & (history != 0)
+                mape = float(np.mean(np.abs((history[valid] - fitted[valid]) / history[valid])) * 100) if np.any(valid) else 0.0
+        else:
+            p, d, q = [int(x) for x in arima_order.split(',')]
+            model = ARIMA(history, order=(p, d, q)).fit()
+            pred = model.forecast(future_steps)
+            fitted = model.fittedvalues
+            base = history[d:]
+            valid = np.isfinite(base) & np.isfinite(fitted) & (base != 0)
+            mape = float(np.mean(np.abs((base[valid] - fitted[valid]) / base[valid])) * 100) if np.any(valid) else 0.0
+
+        future_labels = [f"T+{i+1}" for i in range(future_steps)]
+        return json.dumps({
+            "history_dates": hist_dates,
+            "history_vals": history.tolist(),
+            "fitted_vals": [None if np.isnan(x) else float(x) for x in fitted],
+            "forecast_labels": future_labels,
+            "forecast_vals": [float(x) for x in pred],
+            "mape": mape
+        })
+  `);
+
+  setupDragAndDrop();
+}
+
+function setupDragAndDrop() {
+  const zone = document.getElementById('upload-zone');
+  const fileInput = document.getElementById('csvFile');
+
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('drag');
+    if(e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+      handleFileSelect({ target: fileInput });
+    }
+  });
+  fileInput.addEventListener('change', handleFileSelect);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    parseCSV(evt.target.result);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  if (typeof text !== 'string' || !text.trim()) return alert('O arquivo CSV parece estar vazio ou inválido.');
+
+  function detectDelimiter(line) {
+    const candidates = [',', ';', '\t'];
+    let best = ',', bestCount = -1;
+    for (const d of candidates) {
+      let count = 0, quoted = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (quoted && line[i + 1] === '"') i++;
+          else quoted = !quoted;
+        } else if (!quoted && ch === d) count++;
+      }
+      if (count > bestCount) { bestCount = count; best = d; }
+    }
+    return best;
+  }
+
+  function parseCSVRows(src, delimiter) {
+    const rows = [];
+    let row = [], field = '', quoted = false;
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === '"') {
+        if (quoted && src[i + 1] === '"') { field += '"'; i++; }
+        else quoted = !quoted;
+      } else if (ch === delimiter && !quoted) {
+        row.push(field); field = '';
+      } else if ((ch === '\n' || ch === '\r') && !quoted) {
+        if (ch === '\r' && src[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.some(v => v.trim() !== '')) rows.push(row);
+        row = [];
+      } else field += ch;
+    }
+    row.push(field);
+    if (row.some(v => v.trim() !== '')) rows.push(row);
+    return rows;
+  }
+
+  const firstLine = text.split(/\r\n|\n|\r/).find(l => l.trim() !== '') || '';
+  const delimiter = detectDelimiter(firstLine);
+  const rows = parseCSVRows(text.replace(/^\uFEFF/, ''), delimiter);
+  if (rows.length < 2) return alert('O arquivo CSV parece estar vazio ou inválido.');
+
+  columns = rows[0].map((c, i) => {
+    let name = String(c).trim();
+    if (!name) name = `Coluna ${i + 1}`;
+    return name;
+  });
+  const seen = {};
+  columns = columns.map((c, i) => {
+    const key = c;
+    seen[key] = (seen[key] || 0) + 1;
+    return seen[key] === 1 ? c : `${c}_${seen[key]}`;
+  });
+
+  globalData = rows.slice(1).map(vals => {
+    const row = {};
+    columns.forEach((col, idx) => {
+      let val = vals[idx] !== undefined ? String(vals[idx]).trim() : '';
+      const normalized = val.replace(/^['"]|['"]$/g, '').trim();
+      if (normalized === '') { row[col] = null; return; }
+      const numText = normalized.replace(/\s/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.');
+      const num = Number(numText);
+      row[col] = Number.isFinite(num) && /^[-+]?\d*(?:[.,]\d+)?(?:[eE][-+]?\d+)?$/.test(normalized.replace(/\./g, '.')) ? num : normalized;
+    });
+    return row;
+  });
+
+  detectColumnTypes();
+  renderPreviewTable();
+  populateSelectors();
+
+  const zone = document.getElementById('upload-zone');
+  if (zone) zone.classList.add('loaded');
+  const banner = document.getElementById('status-banner');
+  if (banner) {
+    banner.innerText = `Arquivo carregado com sucesso! ${globalData.length} linhas e ${columns.length} colunas processadas.`;
+    banner.className = 'status-banner status-ok';
+    banner.style.display = 'block';
+  }
+}
+function detectColumnTypes() {
+  numericCols = [];
+  categoricalCols = [];
+  columns.forEach(col => {
+    let numCount = globalData.filter(r => typeof r[col] === 'number').length;
+    if(numCount / globalData.length > 0.6) {
+      numericCols.push(col);
+    } else {
+      categoricalCols.push(col);
+    }
+  });
+}
+
+function renderPreviewTable() {
+  const container = document.getElementById('data-preview');
+  let html = '<table class="preview-table"><thead><tr>';
+  columns.forEach(c => html += `<th>${escapeHtml(String(c))}</th>`);
+  html += '</tr></thead><tbody>';
+  
+  const previewRows = globalData.slice(0, 5);
+  previewRows.forEach(r => {
+    html += '<tr>';
+    columns.forEach(c => html += `<td>${escapeHtml(String(r[c] !== undefined && r[c] !== null ? r[c] : ''))}</td>`);
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function populateSelectors() {
+  const selects = document.querySelectorAll('.data-select');
+  selects.forEach(sel => {
+    const kind = sel.getAttribute('data-kind');
+    sel.innerHTML = '';
+    let targetCols = columns;
+    if(kind === 'numeric') targetCols = numericCols;
+    else if(kind === 'categorical') targetCols = categoricalCols;
+
+    targetCols.forEach(c => {
+      let opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  });
+
+  const multiContainer = document.getElementById('reg-m-x-container');
+  if(multiContainer) {
+    multiContainer.innerHTML = '';
+    numericCols.forEach(c => {
+      let lbl = document.createElement('label');
+      lbl.className = 'tool-item';
+      lbl.innerHTML = `<input type="checkbox" class="reg-m-x-check" value="${c}"><span>${c}</span>`;
+      multiContainer.appendChild(lbl);
+    });
+  }
+}
+
+// Navegação de Abas & Checklist
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('main.tab-content').forEach(m => m.classList.remove('active'));
+    btn.classList.add('active');
+    const tabId = 'tab-' + btn.getAttribute('data-tab');
+    document.getElementById(tabId).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.tool-check').forEach(chk => {
+  chk.addEventListener('change', (e) => {
+    const targetId = e.target.getAttribute('data-target');
+    const panel = document.getElementById(targetId);
+    if(panel) {
+      if(e.target.checked) panel.classList.add('open');
+      else panel.classList.remove('open');
+    }
+  });
+});
+
+// Funções Forecast & Séries Temporais
+async function runTimeSeriesForecast() {
+  const dateCol = document.getElementById('ts-date-col').value;
+  const valCol = document.getElementById('ts-val-col').value;
+  const modelType = document.getElementById('ts-model-type').value;
+  const steps = document.getElementById('ts-steps').value;
+  const seasonal = document.getElementById('ts-seasonal').value;
+  const arimaOrder = document.getElementById('ts-arima-order').value;
+  if(!dateCol || !valCol) return alert('Selecione a coluna de data e a variável de resposta.');
+
+  const resStr = await pyodide.runPythonAsync(`py_forecast('${JSON.stringify(globalData)}', '${dateCol}', '${valCol}', '${modelType}', ${steps}, ${seasonal}, '${arimaOrder}')`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('ts-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.mape.toFixed(2)}%</div><div class="metric-label">MAPE Ajuste</div></div>
+    <div class="metric-card"><div class="metric-value">${steps}</div><div class="metric-label">Passos Futuros</div></div>
+  `;
+
+  let allLabels = [...res.history_dates, ...res.forecast_labels];
+  let histDataPadded = [...res.history_vals, ...Array(res.forecast_vals.length).fill(null)];
+  let forecastDataPadded = [...Array(res.history_vals.length - 1).fill(null), res.history_vals[res.history_vals.length - 1], ...res.forecast_vals];
+
+  const ctx = document.getElementById('ts-chart').getContext('2d');
+  if(window.__charts['ts']) window.__charts['ts'].destroy();
+  window.__charts['ts'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: allLabels,
+      datasets: [
+        { label: 'Histórico', data: histDataPadded, borderColor: '#8E44AD', backgroundColor: '#8E44AD' },
+        { label: 'Previsão Futura', data: forecastDataPadded, borderColor: '#C0392B', borderDash: [5,5], backgroundColor: '#C0392B' }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+  document.getElementById('ts-interp').innerHTML = `<strong>Interpretação:</strong> O modelo ${modelType.toUpperCase()} gerou projeções para os próximos ${steps} períodos com MAPE de ${res.mape.toFixed(2)}%.`;
+}
+
+async function runStationarityTests() {
+  const col = document.getElementById('ts-stat-col').value;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_stationarity('${JSON.stringify(globalData)}', '${col}')`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('ts-stat-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.adf_p < 0.001 ? '< 0.001' : res.adf_p.toFixed(4)}</div><div class="metric-label">P-val ADF</div></div>
+    <div class="metric-card"><div class="metric-value">${res.kpss_p.toFixed(4)}</div><div class="metric-label">P-val KPSS</div></div>
+  `;
+  document.getElementById('ts-stat-table-container').innerHTML = `
+    <table class="result-table">
+      <thead><tr><th>Teste</th><th>Estatística</th><th>P-valor</th><th>Conclusão (α = 0.05)</th></tr></thead>
+      <tbody>
+        <tr><td>Augmented Dickey-Fuller (ADF)</td><td>${res.adf_stat.toFixed(4)}</td><td>${res.adf_p < 0.001 ? '< 0.001' : res.adf_p.toFixed(4)}</td><td>${res.adf_p < 0.05 ? 'Estacionária (Rejeita H0 de raiz unitária)' : 'Não estacionária'}</td></tr>
+        <tr><td>Kwiatkowski-Phillips-Schmidt-Shin (KPSS)</td><td>${res.kpss_stat.toFixed(4)}</td><td>${res.kpss_p.toFixed(4)}</td><td>${res.kpss_p >= 0.05 ? 'Estacionária (Não rejeita H0)' : 'Não estacionária'}</td></tr>
+      </tbody>
+    </table>
+  `;
+  document.getElementById('ts-stat-interp').innerHTML = `<strong>Interpretação:</strong> O teste ADF testa raiz unitária (H0), enquanto o KPSS testa estacionaridade (H0). A combinação robusta indica se a série é estacionária.`;
+}
+
+async function runPhillipsPerron() {
+  const col = document.getElementById('ts-pp-col').value;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_phillips_perron('${JSON.stringify(globalData)}', '${col}')`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('ts-pp-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.stat.toFixed(4)}</div><div class="metric-label">Estatística PP</div></div>
+    <div class="metric-card"><div class="metric-value">${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}</div><div class="metric-label">P-valor</div></div>
+    <div class="metric-card"><div class="metric-value">${res.lags}</div><div class="metric-label">Lags (Newey-West)</div></div>
+    <div class="metric-card"><div class="metric-value">${res.n}</div><div class="metric-label">Amostras (N)</div></div>
+  `;
+  const nonStat = res.p >= 0.05;
+  document.getElementById('ts-pp-interp').innerHTML = `
+    <strong>Interpretação:</strong> O Teste Phillips-Perron (PP) testa H0 de raiz unitária (não estacionariedade) com correção não paramétrica para heteroscedasticidade e autocorrelação. Com p-valor = ${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}, ${nonStat ? 'não rejeitamos H0, indicando que a série é <strong>não estacionária</strong>.' : 'rejeitamos H0 ao nível de 5%, indicando que a série é <strong>estacionária</strong>.'}
+  `;
+}
+
+async function runACFPACF() {
+  const col = document.getElementById('ts-acfpacf-col').value;
+  const nlags = document.getElementById('ts-acfpacf-lags').value || 15;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_acfpacf('${JSON.stringify(globalData)}', '${col}', ${nlags})`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('ts-acfpacf-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">±${res.ci.toFixed(3)}</div><div class="metric-label">IC 95% Ruído Branco</div></div>
+    <div class="metric-card"><div class="metric-value">${res.lags.length - 1}</div><div class="metric-label">Lags Analisados</div></div>
+  `;
+
+  const ctx = document.getElementById('ts-acfpacf-chart').getContext('2d');
+  if(window.__charts['ts-acfpacf']) window.__charts['ts-acfpacf'].destroy();
+  window.__charts['ts-acfpacf'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: res.lags,
+      datasets: [
+        { label: 'ACF', data: res.acf, backgroundColor: '#8E44AD' },
+        { label: 'PACF', data: res.pacf, backgroundColor: '#0E7C86' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { min: -1, max: 1 } }
+    }
+  });
+  document.getElementById('ts-acfpacf-interp').innerHTML = `
+    <strong>Interpretação:</strong> O gráfico exibe ACF e PACF. Coeficientes fora das bandas de confiança (±${res.ci.toFixed(3)}) são estatisticamente significativos, auxiliando na identificação de modelos ARIMA (ordens p e q).
+  `;
+}
+
+async function runDurbinWatson() {
+  const col = document.getElementById('ts-dw-col').value;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_durbin_watson('${JSON.stringify(globalData)}', '${col}')`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  let autocorr = "Sem autocorrelação evidente";
+  if(res.dw < 1.5) autocorr = "Autocorrelação positiva forte";
+  else if(res.dw > 2.5) autocorr = "Autocorrelação negativa forte";
+
+  document.getElementById('ts-dw-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.dw.toFixed(4)}</div><div class="metric-label">Estatística Durbin-Watson</div></div>
+    <div class="metric-card"><div class="metric-value">${res.n}</div><div class="metric-label">Amostras (N)</div></div>
+  `;
+  document.getElementById('ts-dw-interp').innerHTML = `
+    <strong>Interpretação:</strong> A estatística Durbin-Watson é ${res.dw.toFixed(4)}. Valores próximos de 2.0 indicam ausência de autocorrelação nos resíduos. Diagnóstico: ${autocorr}.
+  `;
+}
+
+async function runMannKendall() {
+  const col = document.getElementById('ts-mk-col').value;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_mann_kendall_sens('${JSON.stringify(globalData)}', '${col}')`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('ts-mk-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.s.toFixed(0)}</div><div class="metric-label">Estatística S (MK)</div></div>
+    <div class="metric-card"><div class="metric-value">${res.z.toFixed(4)}</div><div class="metric-label">Estatística Z</div></div>
+    <div class="metric-card"><div class="metric-value">${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}</div><div class="metric-label">P-valor</div></div>
+    <div class="metric-card"><div class="metric-value">${res.sens_slope.toFixed(4)}</div><div class="metric-label">Sen’s Slope</div></div>
+  `;
+  document.getElementById('ts-mk-interp').innerHTML = `
+    <strong>Interpretação:</strong> O Teste de Mann-Kendall aponta tendência ${res.trend.toLowerCase()} (p-valor = ${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}). A inclinação estimada de Sen (Sen's Slope) é ${res.sens_slope.toFixed(4)} unidades por período.
+  `;
+}
+
+async function runChowTest() {
+  const col = document.getElementById('ts-chow-col').value;
+  const breakIdx = document.getElementById('ts-chow-idx').value || 30;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_chow_test('${JSON.stringify(globalData)}', '${col}', ${breakIdx})`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  const hasBreak = res.p < 0.05;
+  document.getElementById('ts-chow-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.f_stat.toFixed(4)}</div><div class="metric-label">Estatística F (Chow)</div></div>
+    <div class="metric-card"><div class="metric-value">${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}</div><div class="metric-label">P-valor</div></div>
+    <div class="metric-card"><div class="metric-value">Índice ${res.break_index}</div><div class="metric-label">Ponto de Quebra</div></div>
+  `;
+  document.getElementById('ts-chow-interp').innerHTML = `
+    <strong>Interpretação:</strong> O Teste de Chow avalia quebra estrutural no índice ${res.break_index}. Com p-valor = ${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}, ${hasBreak ? 'rejeitamos H0, evidenciando <strong>quebra estrutural significativa</strong> no período.' : 'não rejeitamos H0, indicando estabilidade estrutural.'}
+  `;
+}
+
+async function runCusumTest() {
+  const col = document.getElementById('ts-cusum-col').value;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_cusum_test('${JSON.stringify(globalData)}', '${col}')`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  const unstable = res.p < 0.05;
+  document.getElementById('ts-cusum-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.sup_b.toFixed(4)}</div><div class="metric-label">Sup|B| (CUSUM)</div></div>
+    <div class="metric-card"><div class="metric-value">${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}</div><div class="metric-label">P-valor</div></div>
+  `;
+  document.getElementById('ts-cusum-interp').innerHTML = `
+    <strong>Interpretação:</strong> O teste CUSUM de resíduos OLS testa estabilidade de parâmetros. Com p-valor = ${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}, ${unstable ? 'há evidência de instabilidade de parâmetros.' : 'os parâmetros demonstram estabilidade ao longo do tempo.'}
+  `;
+}
+
+async function runResidualDiagnostics() {
+  const col = document.getElementById('ts-resid-col').value;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_residual_diagnostics('${JSON.stringify(globalData)}', '${col}')`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('ts-resid-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.jb_stat.toFixed(4)}</div><div class="metric-label">Jarque-Bera</div></div>
+    <div class="metric-card"><div class="metric-value">${res.jb_p < 0.001 ? '< 0.001' : res.jb_p.toFixed(4)}</div><div class="metric-label">P-val (JB)</div></div>
+    <div class="metric-card"><div class="metric-value">${res.bp_stat.toFixed(4)}</div><div class="metric-label">Breusch-Pagan (LM)</div></div>
+    <div class="metric-card"><div class="metric-value">${res.bp_p < 0.001 ? '< 0.001' : res.bp_p.toFixed(4)}</div><div class="metric-label">P-val (BP)</div></div>
+  `;
+  const normResid = res.jb_p >= 0.05;
+  const homosced = res.bp_p >= 0.05;
+  document.getElementById('ts-resid-interp').innerHTML = `
+    <strong>Interpretação:</strong> 
+    * Teste Jarque-Bera (p = ${res.jb_p < 0.001 ? '< 0.001' : res.jb_p.toFixed(4)}): ${normResid ? 'Resíduos com distribuição normal.' : 'Resíduos não normais.'}
+    * Teste Breusch-Pagan (p = ${res.bp_p < 0.001 ? '< 0.001' : res.bp_p.toFixed(4)}): ${homosced ? 'Homocedasticidade confirmada.' : 'Presença de heterocedasticidade.'}
+  `;
+}
+
+async function runLjungBoxTest() {
+  const col = document.getElementById('ts-ljung-col').value;
+  const lag = document.getElementById('ts-ljung-lag').value || 10;
+  if(!col) return alert('Selecione uma variável.');
+  const resStr = await pyodide.runPythonAsync(`py_ljungbox('${JSON.stringify(globalData)}', '${col}', ${lag})`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('ts-ljung-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.stat.toFixed(4)}</div><div class="metric-label">Estatística Q</div></div>
+    <div class="metric-card"><div class="metric-value">${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}</div><div class="metric-label">P-valor</div></div>
+  `;
+  document.getElementById('ts-ljung-interp').innerHTML = `<strong>Interpretação:</strong> O teste de Ljung-Box para o lag ${lag} apresenta p-valor = ${res.p < 0.001 ? '< 0.001' : res.p.toFixed(4)}. ${res.p < 0.05 ? 'Rejeitamos H0, indicando autocorrelação residual (não é ruído branco).' : 'Não rejeitamos H0, indicando que os dados se comportam como ruído branco.'}`;
+}
+
+async function runDecomposition() {
+  const dateCol = document.getElementById('ts-decomp-date').value;
+  const valCol = document.getElementById('ts-decomp-col').value;
+  const period = document.getElementById('ts-decomp-period').value || 12;
+  if(!dateCol || !valCol) return alert('Selecione data e variável.');
+  const resStr = await pyodide.runPythonAsync(`py_decomposition('${JSON.stringify(globalData)}', '${dateCol}', '${valCol}', ${period})`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('ts-decomp-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${period}</div><div class="metric-label">Período Sazonal</div></div>
+  `;
+
+  const ctx = document.getElementById('ts-decomp-chart').getContext('2d');
+  if(window.__charts['decomp']) window.__charts['decomp'].destroy();
+  window.__charts['decomp'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: res.dates,
+      datasets: [
+        { label: 'Observado', data: res.observed, borderColor: '#12203A', pointRadius: 0 },
+        { label: 'Tendência', data: res.trend, borderColor: '#6D4AFF', pointRadius: 0 },
+        { label: 'Sazonalidade', data: res.seasonal, borderColor: '#1E8F5F', pointRadius: 0 }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+  document.getElementById('ts-decomp-interp').innerHTML = `<strong>Interpretação:</strong> Decomposição aditiva realizada com período sazonal ${period}, separando tendência, sazonalidade e resíduos.`;
+}
+
+// Relatório Executivo
+function collectReportParams(panel) {
+  const parts = [];
+  panel.querySelectorAll('.field').forEach(f => {
+    if (getComputedStyle(f).display === 'none') return;
+    const label = f.querySelector('label');
+    if (!label) return;
+    let value = '';
+    const multi = f.querySelectorAll('.reg-m-x-check');
+    if (multi.length) {
+      value = Array.from(multi).filter(c => c.checked).map(c => c.value).join(', ');
+    } else {
+      const ctrl = f.querySelector('select, input');
+      if (!ctrl || ctrl.type === 'file') return;
+      if (ctrl.tagName === 'SELECT') {
+        const opt = ctrl.options[ctrl.selectedIndex];
+        value = opt ? opt.text : '';
+      } else {
+        value = ctrl.value;
+      }
+    }
+    if (String(value).trim() === '') return;
+    parts.push(`<strong>${escapeHtml(label.textContent.trim())}</strong>: ${escapeHtml(value)}`);
+  });
+  return parts.join(' &nbsp;·&nbsp; ');
+}
+
+function panelHasResults(panel) {
+  if (Array.from(panel.querySelectorAll('.interp-box, .metrics-grid')).some(e => e.textContent.trim() !== '')) return true;
+  if (panel.querySelector('table.result-table')) return true;
+  return Array.from(panel.querySelectorAll('canvas')).some(cv => {
+    try { return typeof Chart !== 'undefined' && Chart.getChart && !!Chart.getChart(cv); } catch (e) { return false; }
+  });
+}
+
+function buildToolReport(panel, num) {
+  const h4 = panel.querySelector('h4');
+  const title = h4 ? h4.textContent.trim() : 'Ferramenta';
+  const params = collectReportParams(panel);
+  const clone = panel.cloneNode(true);
+
+  // Gráficos (canvas) -> imagens estáticas do que está na tela
+  const origCanvases = panel.querySelectorAll('canvas');
+  const cloneCanvases = clone.querySelectorAll('canvas');
+  origCanvases.forEach((cv, i) => {
+    const cc = cloneCanvases[i];
+    const box = cc.closest('.chart-box') || cc.parentElement;
+    let chart = null;
+    try { chart = (typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(cv) : null; } catch (e) {}
+    if (chart) {
+      try { chart.update('none'); } catch (e) {}
+      const wrap = document.createElement('div');
+      wrap.className = 'report-chart-wrap';
+      const img = document.createElement('img');
+      img.alt = 'Gráfico — ' + title;
+      img.src = cv.toDataURL('image/png');
+      wrap.appendChild(img);
+      box.replaceWith(wrap);
+    } else {
+      box.remove();
+    }
+  });
+  clone.querySelectorAll('.chart-row').forEach(r => { if (!r.children.length) r.remove(); });
+
+  // Descrição genérica que antecede os controles não entra no relatório
+  let passedControls = false;
+  Array.from(clone.children).forEach(ch => {
+    if (ch.classList.contains('controls-row')) passedControls = true;
+    else if (!passedControls && ch.classList.contains('desc')) ch.remove();
+  });
+
+  // Remove título original, controles e blocos ainda vazios
+  clone.querySelectorAll('h4, .field, .controls-row, button, input, select').forEach(e => e.remove());
+  clone.querySelectorAll('.metrics-grid, .interp-box, [id$="container"], [id$="-table"]').forEach(e => {
+    if (!e.textContent.trim() && !e.querySelector('img, table')) e.remove();
+  });
+  clone.removeAttribute('id');
+  clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+
+  const wrap = document.createElement('div');
+  wrap.className = 'report-tool';
+  wrap.innerHTML = `<h5>${num}. ${escapeHtml(title)}</h5>` + (params ? `<div class="report-params">${params}</div>` : '');
+  while (clone.firstChild) wrap.appendChild(clone.firstChild);
+  return wrap;
+}
+
+function openReportModal() {
+  const modal = document.getElementById('report-modal');
+  const projectInput = document.getElementById('project-name');
+  const title = (projectInput && projectInput.value) || 'Projeto de Melhoria Seis Sigma';
+  document.getElementById('report-title').textContent = `Relatório Executivo — ${title}`;
+
+  const activeBtn = document.querySelector('.tab-btn.active');
+  const stage = activeBtn ? activeBtn.textContent.trim() : '';
+  const activeMain = document.querySelector('main.tab-content.active');
+  const tabColor = activeMain ? activeMain.style.getPropertyValue('--tab-color').trim() : '';
+  if (tabColor) modal.style.setProperty('--tab-color', tabColor);
+  const fileInput = document.getElementById('csvFile');
+  const fileName = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0].name : '';
+
+  document.getElementById('report-body').innerHTML = `
+    <div class="report-section report-meta">
+      <h4>1. Visão Geral do Projeto</h4>
+      <p>Projeto: <strong>${escapeHtml(title)}</strong></p>
+      ${stage ? `<p>Etapa DMAIC: <strong>${escapeHtml(stage)}</strong></p>` : ''}
+      ${fileName ? `<p>Arquivo de dados: <strong>${escapeHtml(fileName)}</strong></p>` : ''}
+      <p>Total de registros analisados: ${globalData.length}</p>
+      <p>Variáveis: ${columns.length} (numéricas: ${numericCols.length} · categóricas: ${categoricalCols.length})</p>
+      <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+    </div>
+    <div class="report-section" id="report-analyses">
+      <h4>2. Análises Executadas em Tela</h4>
+    </div>
+  `;
+
+  const holder = document.getElementById('report-analyses');
+  const openPanels = Array.from(document.querySelectorAll('.tool-panel.open'));
+  let count = 0, skipped = 0;
+  openPanels.forEach(panel => {
+    if (!panelHasResults(panel)) { skipped++; return; }
+    count++;
+    holder.appendChild(buildToolReport(panel, `2.${count}`));
+  });
+  if (!count) {
+    const p = document.createElement('p');
+    p.textContent = globalData.length
+      ? 'Nenhuma análise foi executada nas ferramentas abertas em tela. Abra uma ferramenta na lista à esquerda, clique em Executar e gere o relatório novamente.'
+      : 'Nenhum dado foi carregado e nenhuma análise foi executada ainda. Carregue um arquivo CSV, execute as ferramentas desejadas e gere o relatório novamente.';
+    holder.appendChild(p);
+  } else if (skipped) {
+    const p = document.createElement('p');
+    p.className = 'report-note';
+    p.textContent = `${skipped} ferramenta(s) aberta(s) sem resultados não foram incluídas.`;
+    holder.appendChild(p);
+  }
+
+  modal.style.display = 'flex';
+  const content = modal.querySelector('.modal-content');
+  if (content) content.scrollTop = 0;
+}
+
+function exportReportPDF() {
+  const previousTitle = document.title;
+  const activeBtn = document.querySelector('.tab-btn.active');
+  const stage = (activeBtn ? activeBtn.textContent.trim() : 'Painel')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_');
+  document.title = `Relatorio_DMAIC_${stage}_${new Date().toISOString().slice(0, 10)}`;
+  const restoreTitle = () => {
+    document.title = previousTitle;
+    window.removeEventListener('afterprint', restoreTitle);
+  };
+  window.addEventListener('afterprint', restoreTitle);
+  window.print();
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal').style.display = 'none';
+}
+
+window.addEventListener('DOMContentLoaded', initPyodideEngine);
+</script>
+</body>
+</html>
