@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMAIC Studio — Painel Estatístico Seis Sigma</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F6;
+  --surface:#FFFFFF;
+  --ink:#12203A;
+  --ink-soft:#51617C;
+  --border:#D7DCE6;
+  --measure:#0E7C86;
+  --analyze:#6D4AFF;
+  --improve:#C77A1F;
+  --control:#1E8F5F;
+  --forecast:#8E44AD;
+  --danger:#C0392B;
+  --warning:#B9770E;
+  --success:#1E8F5F;
+  --accent:var(--measure);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:14px;
+  line-height:1.5;
+}
+h1,h2,h3,h4,.brand,.tab-btn,.section-title{font-family:'Space Grotesk',sans-serif;}
+::selection{background:var(--accent);color:#fff;}
+
+header.app-header{
+  background:var(--ink);
+  color:#fff;
+  padding:22px 28px 18px;
+  border-bottom:4px solid var(--measure);
+}
+.header-row{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;}
+.brand{font-size:22px;font-weight:700;}
+.brand small{display:block;font-size:11px;color:#9DB0CE;font-weight:400;margin-top:2px;}
+.project-field{display:flex;flex-direction:column;gap:4px;}
+.project-field label{font-size:10px;color:#9DB0CE;text-transform:uppercase;letter-spacing:.08em;}
+.project-field input{
+  background:transparent;border:none;border-bottom:1px solid #3C4A63;
+  color:#fff;font-family:'Space Grotesk',sans-serif;font-size:15px;padding:4px 2px;min-width:280px;
+}
+.project-field input:focus{outline:none;border-bottom-color:var(--measure);}
+
+.upload-bar{max-width:1240px;margin:20px auto 0;padding:0 24px;}
+.upload-zone{
+  background:var(--surface);border:1.5px dashed var(--border);border-radius:6px;
+  padding:18px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;transition:.15s;cursor:pointer;
+}
+.upload-zone:hover{border-color:var(--measure);}
+.upload-zone.drag{border-color:var(--measure);background:#F1FAFA;}
+.upload-zone .icon{
+  width:40px;height:40px;flex:0 0 auto;border-radius:6px;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;color:var(--measure);font-size:20px;
+}
+.upload-zone .text strong{display:block;font-family:'Space Grotesk',sans-serif;font-size:14px;}
+.upload-zone .text span{color:var(--ink-soft);font-size:12px;}
+.upload-zone input[type=file]{display:none;}
+
+.status-banner{margin-top:10px;padding:9px 14px;border-radius:4px;font-size:12.5px;display:none;}
+.status-ok{background:#E7F6EF;color:#1E8F5F;border:1px solid #B9E5CE;display:block;}
+.status-error{background:#FBEAE8;color:var(--danger);border:1px solid #F0C6C0;display:block;}
+.status-load{background:#E8F4F8;color:var(--measure);border:1px solid #B6D8E2;display:block;}
+
+.progress-container{margin-top:8px;background:var(--border);border-radius:4px;overflow:hidden;height:8px;display:none;}
+.progress-fill{background:var(--measure);height:100%;width:0%;transition:width 0.2s ease;}
+
+.preview-wrap{margin-top:14px;overflow:auto;max-height:220px;border:1px solid var(--border);border-radius:6px;display:none;background:#fff;}
+.upload-zone.loaded ~ .preview-wrap{display:block;}
+table.preview-table{border-collapse:collapse;width:100%;font-size:11.5px;}
+.preview-table th{background:var(--bg);position:sticky;top:0;text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.preview-table td{padding:5px 10px;border-bottom:1px solid #EEF1F6;white-space:nowrap;}
+
+.tabs-nav{max-width:1240px;margin:22px auto 0;padding:0 24px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);justify-content:space-between;align-items:center;}
+.tab-buttons{display:flex;gap:4px;flex-wrap:wrap;}
+.tab-btn{
+  border:none;background:transparent;padding:11px 18px;font-size:13px;font-weight:600;
+  color:var(--ink-soft);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;
+}
+.tab-btn.active{color:var(--ink);border-bottom-color:var(--tab-color,var(--measure));}
+.tab-btn .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:var(--tab-color,var(--measure));}
+
+.actions-top{display:flex;gap:10px;padding-bottom:6px;}
+.btn-secondary{
+  border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:4px;
+  padding:7px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;transition:.12s;font-weight:600;
+}
+.btn-secondary:hover{border-color:var(--ink);}
+
+main{max-width:1240px;margin:0 auto;padding:24px;display:none;gap:24px;}
+main.active{display:grid;grid-template-columns:280px 1fr;}
+@media(max-width:900px){main.active{grid-template-columns:1fr;}}
+
+.checklist{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;align-self:start;position:sticky;top:20px;max-height:85vh;overflow-y:auto;}
+.checklist h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin:16px 0 8px;}
+.checklist h3:first-child{margin-top:0;}
+.tool-item{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-radius:5px;cursor:pointer;}
+.tool-item:hover{background:var(--bg);}
+.tool-item input{margin-top:3px;accent-color:var(--tab-color,var(--measure));}
+.tool-item span{font-size:12.5px;line-height:1.35;}
+
+.panels{display:flex;flex-direction:column;gap:16px;}
+.tool-panel{display:none;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--tab-color,var(--measure));border-radius:8px;padding:20px 22px;}
+.tool-panel.open{display:block;}
+.tool-panel h4{margin:0 0 4px;font-size:16px;}
+.tool-panel .desc{color:var(--ink-soft);font-size:12.5px;margin-bottom:14px;}
+
+.controls-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);}
+.field select,.field input[type=number],.field input[type=text]{
+  border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;min-width:150px;background:#fff;
+}
+.btn{
+  border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:4px;
+  padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;cursor:pointer;transition:.12s;
+}
+.btn:hover{opacity:.85;}
+
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;}
+.metric-card{background:var(--bg);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;}
+.metric-value{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:var(--ink);word-break:break-word;}
+.metric-label{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
+
+.chart-box{height:320px;margin-bottom:14px;position:relative;}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:720px){.chart-row{grid-template-columns:1fr;}}
+
+.interp-box{background:#F5F7FB;border-left:3px solid var(--tab-color,var(--measure));border-radius:4px;padding:12px 14px;font-size:12.5px;color:var(--ink);min-height:18px;margin-top:10px;}
+.interp-box:empty::before{content:"A interpretação estatística automática aparecerá aqui após executar a análise.";color:var(--ink-soft);}
+
+.result-table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:12px;}
+.result-table th{background:var(--bg);text-align:left;padding:8px;border-bottom:1px solid var(--border);}
+.result-table td{padding:7px 8px;border-bottom:1px solid #EEF1F6;}
+
+/* Modal Relatório */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(18,32,58,0.6);display:none;justify-content:center;align-items:center;z-index:1000;padding:20px;}
+.modal-content{background:var(--surface);border-radius:8px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;padding:30px;box-shadow:0 10px 30px rgba(0,0,0,0.2);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px;}
+.modal-header h3{margin:0;font-size:20px;}
+.modal-close{background:transparent;border:none;font-size:18px;cursor:pointer;color:var(--ink-soft);}
+.report-section{margin-bottom:20px;}
+.report-section h4{margin:0 0 8px;color:var(--measure);border-bottom:1px solid var(--border);padding-bottom:4px;}
+
+footer{text-align:center;color:var(--ink-soft);font-size:11px;padding:26px 0 34px;}
+/* Relatório: análises em tela + exportação PDF */
+.report-meta p{margin:3px 0;font-size:12.5px;}
+.report-tool{margin:0 0 20px;overflow-x:auto;}
+.report-tool h5{font-family:'Space Grotesk',sans-serif;font-size:14px;margin:14px 0 6px;color:var(--ink);}
+.report-params{font-size:11.5px;color:var(--ink-soft);background:#F5F7FB;border-radius:4px;padding:6px 10px;margin-bottom:10px;}
+.report-chart-wrap{margin-bottom:12px;}
+.report-chart-wrap img{display:block;width:100%;height:auto;}
+.report-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+@media print{
+  @page{size:A4;margin:14mm 12mm;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  html,body{background:#fff !important;}
+  body > *:not(#report-modal){display:none !important;}
+  #report-modal{position:static !important;display:block !important;width:auto !important;height:auto !important;padding:0 !important;background:none !important;}
+  .modal-content{max-width:none !important;width:auto !important;max-height:none !important;overflow:visible !important;box-shadow:none !important;padding:0 !important;border-radius:0 !important;}
+  .modal-close,.modal-actions{display:none !important;}
+  .report-tool{overflow:visible;}
+  .report-tool h5,.report-section h4{break-after:avoid;}
+  .metric-card,.report-chart-wrap,.interp-box,.result-table tr{break-inside:avoid;}
+  .result-table{font-size:10px;}
+}
+</style>
+</head>
+<body>
+<div class="upload-bar">
+  <label class="upload-zone" id="upload-zone" for="csvFile">
+    <div class="icon">⇪</div>
+    <div class="text">
+      <strong>Carregar dados do processo (.csv / separadores flexíveis)</strong>
+      <span>Processamento 100% local no navegador via WebAssembly (Pyodide)</span>
+    </div>
+    <input type="file" id="csvFile" accept=".csv,.txt">
+  </label>
+  <div class="status-banner" id="status-banner"></div>
+  <div class="progress-container" id="progress-container">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div class="preview-wrap"><div id="data-preview"></div></div>
+</div>
+
+<nav class="tabs-nav" id="tabs-nav">
+  <div class="tab-buttons">
+    <button class="tab-btn active" data-tab="improve" style="--tab-color:#C77A1F;"><span class="dot"></span>Improve</button>
+  </div>
+  <div class="actions-top">
+    <button class="btn-secondary" onclick="openReportModal()">📄 Gerar Relatório Executivo</button>
+  </div>
+</nav>
+
+<!-- IMPROVE -->
+<main class="tab-content active" id="tab-improve" style="--tab-color:#C77A1F;">
+  <aside class="checklist">
+    <h3>Melhoria & Validação</h3>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-before-after"><span>Comparação Antes × Depois</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-doe"><span>Planejamento de Experimentos (DOE 2² / 2³)</span></label>
+  </aside>
+  <div class="panels">
+    <section class="tool-panel" id="panel-before-after">
+      <h4>Comparação Antes × Depois (Validação de Melhoria)</h4>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta</label><select id="ba-val" class="data-select" data-kind="numeric"></select></div>
+        <div class="field">
+          <label>Adicionar arquivo para comparação</label>
+          <input type="file" id="ba-after-file" accept=".csv,.txt" style="border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;background:#fff;min-width:250px;">
+        </div>
+        <div class="field">
+          <label>Mudança mínima de interesse prático (opcional)</label>
+          <input type="number" id="ba-practical-threshold" step="any" min="0" placeholder="Ex.: 5" style="border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;background:#fff;min-width:170px;">
+        </div>
+        <div class="field">
+          <label>Direção desejada</label>
+          <select id="ba-practical-direction" style="border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;background:#fff;min-width:150px;">
+            <option value="">Sem direção definida</option>
+            <option value="higher">Maior é desejado</option>
+            <option value="lower">Menor é desejado</option>
+          </select>
+        </div>
+        <button class="btn" onclick="runBeforeAfter()">Executar Comparação</button>
+      </div>
+      <div id="ba-file-status" style="margin:-4px 0 14px;padding:8px 10px;border-radius:4px;background:#F5F7FB;color:var(--ink-soft);font-size:11.5px;">
+        <strong>ANTES:</strong> arquivo original &nbsp;|&nbsp; <strong>DEPOIS:</strong> adicione o arquivo para comparação.
+      </div>
+      <div class="metrics-grid" id="ba-metrics"></div>
+      <div class="chart-box"><canvas id="ba-chart"></canvas></div>
+      <div class="desc" style="margin-top:4px;margin-bottom:8px;">Carta de Controle — observações individuais (I) com limites calculados a partir do ANTES.</div>
+      <div class="chart-box" style="height:360px;"><canvas id="ba-control-chart"></canvas></div>
+      <div class="interp-box" id="ba-interp"></div>
+    </section>
+    <section class="tool-panel" id="panel-doe">
+      <h4>Planejamento de Experimentos (DOE 2² / 2³)</h4>
+      <div class="controls-row">
+        <div class="field"><label>Fator A (-1 / +1)</label><select id="doe-a" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Fator B (-1 / +1)</label><select id="doe-b" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Fator C (Opcional)</label><select id="doe-c" class="data-select" data-kind="numeric"><option value="">Nenhum (2²)</option></select></div>
+        <div class="field"><label>Resposta (Y)</label><select id="doe-y" class="data-select" data-kind="numeric"></select></div>
+        <button class="btn" onclick="runDOE()">Executar DOE</button>
+      </div>
+      <div class="metrics-grid" id="doe-metrics"></div>
+      <div class="chart-box"><canvas id="doe-chart"></canvas></div>
+      <div class="interp-box" id="doe-interp"></div>
+    </section>
+  </div>
+</main>
+
+<!-- Modal Relatório -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="report-title">Relatório Executivo Seis Sigma</h3>
+      <button class="modal-close" onclick="closeReportModal()">✕</button>
+    </div>
+    <div id="report-body">
+      <p>Gerando relatório consolidado do projeto...</p>
+    </div>
+    <div class="modal-actions" style="margin-top:20px;text-align:right;">
+      <button class="btn" onclick="exportReportPDF()">📄 Exportar PDF</button>
+    </div>
+  </div>
+</div>
+
+<footer>DMAIC Studio · Motor Estatístico Python via Pyodide (NumPy, Pandas, SciPy, Statsmodels)</footer>
+
+<script>
+let globalData = [];
+let comparisonAfterData = [];
+let comparisonAfterFileName = '';
+let columns = [];
+let numericCols = [];
+let categoricalCols = [];
+let pyodide = null;
+window.__charts = {};
+
+async function initPyodideEngine() {
+  const banner = document.getElementById('status-banner');
+  const progressContainer = document.getElementById('progress-container');
+  const progressFill = document.getElementById('progress-fill');
+  
+  banner.innerText = "Carregando ambiente Python (Pyodide WebAssembly)...";
+  banner.className = "status-banner status-load";
+  if(progressContainer) progressContainer.style.display = 'block';
+
+  let progress = 10;
+  if(progressFill) progressFill.style.width = progress + '%';
+
+  pyodide = await loadPyodide({
+    messageCallback: (msg) => {
+      banner.innerText = `Pyodide: ${msg}`;
+      progress = Math.min(progress + 15, 50);
+      if(progressFill) progressFill.style.width = progress + '%';
+    }
+  });
+
+  banner.innerText = "Carregando bibliotecas científicas (NumPy, Pandas, SciPy, Statsmodels)...";
+  if(progressFill) progressFill.style.width = '60%';
+
+  await pyodide.loadPackage(["numpy", "pandas", "scipy", "statsmodels"], {
+    messageCallback: (msg) => {
+      banner.innerText = `Pacotes: ${msg}`;
+      progress = Math.min(progress + 15, 95);
+      if(progressFill) progressFill.style.width = progress + '%';
+    }
+  });
+
+  if(progressFill) progressFill.style.width = '100%';
+  banner.innerText = "Ambiente Python e pacotes estatísticos carregados com sucesso!";
+  banner.className = "status-banner status-ok";
+  setTimeout(() => {
+    banner.style.display = 'none';
+    if(progressContainer) progressContainer.style.display = 'none';
+  }, 3000);
+
+  await pyodide.runPythonAsync(`
+    import json
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+    import statsmodels.api as sm
+    import statsmodels.formula.api as smf
+    from statsmodels.stats.anova import anova_lm
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+    from statsmodels.stats.multicomp import pairwise_tukeyhsd
+    from statsmodels.stats.proportion import proportions_ztest
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+    from statsmodels.tsa.arima.model import ARIMA
+    from statsmodels.tsa.stattools import adfuller, kpss, acf, pacf
+    from statsmodels.stats.diagnostic import acorr_ljungbox, het_breuschpagan, breaks_cusumolsresid
+    from statsmodels.stats.stattools import durbin_watson
+    from statsmodels.tsa.seasonal import seasonal_decompose
+
+    def py_before_after(data_before_json, data_after_json, val_col):
+        before = pd.DataFrame(json.loads(data_before_json))
+        after = pd.DataFrame(json.loads(data_after_json))
+        if val_col not in before.columns:
+            return json.dumps({"error": f"A variável '{val_col}' não existe no arquivo original."})
+        if val_col not in after.columns:
+            return json.dumps({"error": f"A variável '{val_col}' não existe no arquivo DEPOIS."})
+
+        vals1 = pd.to_numeric(before[val_col], errors='coerce').dropna()
+        vals2 = pd.to_numeric(after[val_col], errors='coerce').dropna()
+        if len(vals1) == 0 or len(vals2) == 0:
+            return json.dumps({"error": "Não foram encontrados dados numéricos válidos da variável selecionada nos dois arquivos."})
+
+        a = np.asarray(vals1, dtype=float)
+        b = np.asarray(vals2, dtype=float)
+        n1, n2 = len(a), len(b)
+        mean1, mean2 = float(np.mean(a)), float(np.mean(b))
+        std1 = float(np.std(a, ddof=1)) if n1 > 1 else 0.0
+        std2 = float(np.std(b, ddof=1)) if n2 > 1 else 0.0
+        diff = mean2 - mean1
+        pct_change = (diff / mean1) * 100 if mean1 != 0 else 0
+
+        t_res = stats.ttest_ind(a, b, equal_var=False)
+        t_stat = float(t_res.statistic)
+        p_val = float(t_res.pvalue)
+
+        # IC 95% da diferença (DEPOIS - ANTES), compatível com Welch.
+        if n1 > 1 and n2 > 1:
+            se_diff = float(np.sqrt((std1 ** 2 / n1) + (std2 ** 2 / n2)))
+            if se_diff > 0:
+                df_welch = ((std1 ** 2 / n1 + std2 ** 2 / n2) ** 2) / (
+                    ((std1 ** 2 / n1) ** 2 / (n1 - 1)) + ((std2 ** 2 / n2) ** 2 / (n2 - 1))
+                )
+                t_crit = float(stats.t.ppf(0.975, df_welch))
+                ci_low = float(diff - t_crit * se_diff)
+                ci_high = float(diff + t_crit * se_diff)
+            else:
+                df_welch, ci_low, ci_high = float(n1 + n2 - 2), float(diff), float(diff)
+        else:
+            df_welch, ci_low, ci_high = None, None, None
+
+        # Hedges' g: tamanho de efeito padronizado com correção para amostras pequenas.
+        if n1 > 1 and n2 > 1 and (n1 + n2 - 2) > 0:
+            df_pooled = n1 + n2 - 2
+            pooled_var = (((n1 - 1) * std1 ** 2) + ((n2 - 1) * std2 ** 2)) / df_pooled
+            pooled_sd = float(np.sqrt(pooled_var))
+            if pooled_sd > 0:
+                cohen_d = float(diff / pooled_sd)
+                correction_j = float(1 - (3 / (4 * df_pooled - 1)))
+                hedges_g = float(cohen_d * correction_j)
+            else:
+                cohen_d = hedges_g = 0.0
+        else:
+            pooled_sd = cohen_d = hedges_g = None
+
+        median1, median2 = float(np.median(a)), float(np.median(b))
+        q1_1, q3_1 = np.percentile(a, [25, 75])
+        q1_2, q3_2 = np.percentile(b, [25, 75])
+        iqr1, iqr2 = float(q3_1 - q1_1), float(q3_2 - q1_2)
+        median_diff = median2 - median1
+
+        # Testes complementares; não substituem o Welch.
+        if n1 > 0 and n2 > 0:
+            mw_res = stats.mannwhitneyu(a, b, alternative='two-sided', method='auto')
+            mw_u, mw_p = float(mw_res.statistic), float(mw_res.pvalue)
+        else:
+            mw_u = mw_p = None
+
+        if n1 >= 3:
+            sh1 = stats.shapiro(a[:5000]) if n1 > 5000 else stats.shapiro(a)
+            sh1_stat, sh1_p = float(sh1.statistic), float(sh1.pvalue)
+        else:
+            sh1_stat = sh1_p = None
+        if n2 >= 3:
+            sh2 = stats.shapiro(b[:5000]) if n2 > 5000 else stats.shapiro(b)
+            sh2_stat, sh2_p = float(sh2.statistic), float(sh2.pvalue)
+        else:
+            sh2_stat = sh2_p = None
+
+        if n1 >= 2 and n2 >= 2:
+            lev = stats.levene(a, b, center='median')
+            lev_stat, lev_p = float(lev.statistic), float(lev.pvalue)
+        else:
+            lev_stat = lev_p = None
+
+        return json.dumps({
+            "g1": "ANTES", "mean1": mean1, "std1": std1, "n1": n1,
+            "g2": "DEPOIS", "mean2": mean2, "std2": std2, "n2": n2,
+            "pct_change": pct_change, "diff": float(diff),
+            "ci95_low": ci_low, "ci95_high": ci_high, "welch_df": df_welch,
+            "t": t_stat, "p": p_val,
+            "hedges_g": hedges_g, "cohen_d": cohen_d, "pooled_sd": pooled_sd,
+            "median1": median1, "median2": median2, "iqr1": iqr1, "iqr2": iqr2,
+            "median_diff": float(median_diff),
+            "mw_u": mw_u, "mw_p": mw_p,
+            "shapiro1_stat": sh1_stat, "shapiro1_p": sh1_p,
+            "shapiro2_stat": sh2_stat, "shapiro2_p": sh2_p,
+            "levene_stat": lev_stat, "levene_p": lev_p
+        })
+
+    def py_doe(data_json, col_a, col_b, col_c, col_y):
+        df = pd.DataFrame(json.loads(data_json))
+        cols = [col_a, col_b, col_y] if not col_c else [col_a, col_b, col_c, col_y]
+        sub = df[cols].apply(pd.to_numeric, errors='coerce').dropna()
+        if len(sub) < 4: return json.dumps({"error": "Dados insuficientes para DOE"})
+        if not col_c:
+            sub['AB'] = sub[col_a] * sub[col_b]
+            formula = f"{col_y} ~ {col_a} + {col_b} + AB"
+        else:
+            sub['AB'] = sub[col_a] * sub[col_b]
+            sub['AC'] = sub[col_a] * sub[col_c]
+            sub['BC'] = sub[col_b] * sub[col_c]
+            sub['ABC'] = sub[col_a] * sub[col_b] * sub[col_c]
+            formula = f"{col_y} ~ {col_a} + {col_b} + {col_c} + AB + AC + BC + ABC"
+        model = smf.ols(formula, data=sub).fit()
+        effects = [{"effect": name, "value": float(coef), "p": float(model.pvalues[name])} for name, coef in model.params.items() if name != 'Intercept']
+        return json.dumps({"effects": effects, "r2": float(model.rsquared)})
+
+  `);
+
+  setupDragAndDrop();
+}
+
+function setupDragAndDrop() {
+  const zone = document.getElementById('upload-zone');
+  const fileInput = document.getElementById('csvFile');
+
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('drag');
+    if(e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+      handleFileSelect({ target: fileInput });
+    }
+  });
+  fileInput.addEventListener('change', handleFileSelect);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    parseCSV(evt.target.result);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  if (typeof text !== 'string' || !text.trim()) return alert('O arquivo CSV parece estar vazio ou inválido.');
+
+  function detectDelimiter(line) {
+    const candidates = [',', ';', '\t'];
+    let best = ',', bestCount = -1;
+    for (const d of candidates) {
+      let count = 0, quoted = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (quoted && line[i + 1] === '"') i++;
+          else quoted = !quoted;
+        } else if (!quoted && ch === d) count++;
+      }
+      if (count > bestCount) { bestCount = count; best = d; }
+    }
+    return best;
+  }
+
+  function parseCSVRows(src, delimiter) {
+    const rows = [];
+    let row = [], field = '', quoted = false;
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === '"') {
+        if (quoted && src[i + 1] === '"') { field += '"'; i++; }
+        else quoted = !quoted;
+      } else if (ch === delimiter && !quoted) {
+        row.push(field); field = '';
+      } else if ((ch === '\n' || ch === '\r') && !quoted) {
+        if (ch === '\r' && src[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.some(v => v.trim() !== '')) rows.push(row);
+        row = [];
+      } else field += ch;
+    }
+    row.push(field);
+    if (row.some(v => v.trim() !== '')) rows.push(row);
+    return rows;
+  }
+
+  const firstLine = text.split(/\r\n|\n|\r/).find(l => l.trim() !== '') || '';
+  const delimiter = detectDelimiter(firstLine);
+  const rows = parseCSVRows(text.replace(/^\uFEFF/, ''), delimiter);
+  if (rows.length < 2) return alert('O arquivo CSV parece estar vazio ou inválido.');
+
+  columns = rows[0].map((c, i) => {
+    let name = String(c).trim();
+    if (!name) name = `Coluna ${i + 1}`;
+    return name;
+  });
+  const seen = {};
+  columns = columns.map((c, i) => {
+    const key = c;
+    seen[key] = (seen[key] || 0) + 1;
+    return seen[key] === 1 ? c : `${c}_${seen[key]}`;
+  });
+
+  globalData = rows.slice(1).map(vals => {
+    const row = {};
+    columns.forEach((col, idx) => {
+      let val = vals[idx] !== undefined ? String(vals[idx]).trim() : '';
+      const normalized = val.replace(/^['"]|['"]$/g, '').trim();
+      if (normalized === '') { row[col] = null; return; }
+      const numText = normalized.replace(/\s/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.');
+      const num = Number(numText);
+      row[col] = Number.isFinite(num) && /^[-+]?\d*(?:[.,]\d+)?(?:[eE][-+]?\d+)?$/.test(normalized.replace(/\./g, '.')) ? num : normalized;
+    });
+    return row;
+  });
+
+  detectColumnTypes();
+  renderPreviewTable();
+  populateSelectors();
+
+  const zone = document.getElementById('upload-zone');
+  if (zone) zone.classList.add('loaded');
+  const banner = document.getElementById('status-banner');
+  if (banner) {
+    banner.innerText = `Arquivo carregado com sucesso! ${globalData.length} linhas e ${columns.length} colunas processadas.`;
+    banner.className = 'status-banner status-ok';
+    banner.style.display = 'block';
+  }
+}
+function detectColumnTypes() {
+  numericCols = [];
+  categoricalCols = [];
+  columns.forEach(col => {
+    let numCount = globalData.filter(r => typeof r[col] === 'number').length;
+    if(numCount / globalData.length > 0.6) {
+      numericCols.push(col);
+    } else {
+      categoricalCols.push(col);
+    }
+  });
+}
+
+function renderPreviewTable() {
+  const container = document.getElementById('data-preview');
+  let html = '<table class="preview-table"><thead><tr>';
+  columns.forEach(c => html += `<th>${escapeHtml(String(c))}</th>`);
+  html += '</tr></thead><tbody>';
+  
+  const previewRows = globalData.slice(0, 5);
+  previewRows.forEach(r => {
+    html += '<tr>';
+    columns.forEach(c => html += `<td>${escapeHtml(String(r[c] !== undefined && r[c] !== null ? r[c] : ''))}</td>`);
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function populateSelectors() {
+  const selects = document.querySelectorAll('.data-select');
+  selects.forEach(sel => {
+    const kind = sel.getAttribute('data-kind');
+    sel.innerHTML = '';
+    let targetCols = columns;
+    if(kind === 'numeric') targetCols = numericCols;
+    else if(kind === 'categorical') targetCols = categoricalCols;
+
+    targetCols.forEach(c => {
+      let opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  });
+
+  const multiContainer = document.getElementById('reg-m-x-container');
+  if(multiContainer) {
+    multiContainer.innerHTML = '';
+    numericCols.forEach(c => {
+      let lbl = document.createElement('label');
+      lbl.className = 'tool-item';
+      lbl.innerHTML = `<input type="checkbox" class="reg-m-x-check" value="${c}"><span>${c}</span>`;
+      multiContainer.appendChild(lbl);
+    });
+  }
+}
+
+// Navegação de Abas & Checklist
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('main.tab-content').forEach(m => m.classList.remove('active'));
+    btn.classList.add('active');
+    const tabId = 'tab-' + btn.getAttribute('data-tab');
+    document.getElementById(tabId).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.tool-check').forEach(chk => {
+  chk.addEventListener('change', (e) => {
+    const targetId = e.target.getAttribute('data-target');
+    const panel = document.getElementById(targetId);
+    if(panel) {
+      if(e.target.checked) panel.classList.add('open');
+      else panel.classList.remove('open');
+    }
+  });
+});
+
+// Funções Improve
+function parseComparisonCSV(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+
+  function detectDelimiter(line) {
+    const candidates = [',', ';', '\\t'];
+    let best = ',', bestCount = -1;
+    for (const d of candidates) {
+      let count = 0, quoted = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (quoted && line[i + 1] === '"') i++;
+          else quoted = !quoted;
+        } else if (!quoted && ch === d) count++;
+      }
+      if (count > bestCount) { bestCount = count; best = d; }
+    }
+    return best;
+  }
+
+  function parseRows(src, delimiter) {
+    const rows = [];
+    let row = [], field = '', quoted = false;
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === '"') {
+        if (quoted && src[i + 1] === '"') { field += '"'; i++; }
+        else quoted = !quoted;
+      } else if (ch === delimiter && !quoted) {
+        row.push(field); field = '';
+      } else if ((ch === '\n' || ch === '\r') && !quoted) {
+        if (ch === '\r' && src[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.some(v => v.trim() !== '')) rows.push(row);
+        row = [];
+      } else field += ch;
+    }
+    row.push(field);
+    if (row.some(v => v.trim() !== '')) rows.push(row);
+    return rows;
+  }
+
+  const firstLine = text.split(/\r\n|\n|\r/).find(l => l.trim() !== '') || '';
+  const delimiter = detectDelimiter(firstLine);
+  const rows = parseRows(text.replace(/^\uFEFF/, ''), delimiter);
+  if (rows.length < 2) return null;
+
+  let cols = rows[0].map((c, i) => {
+    let name = String(c).trim();
+    return name || `Coluna ${i + 1}`;
+  });
+  const seen = {};
+  cols = cols.map(c => {
+    seen[c] = (seen[c] || 0) + 1;
+    return seen[c] === 1 ? c : `${c}_${seen[c]}`;
+  });
+
+  return rows.slice(1).map(vals => {
+    const row = {};
+    cols.forEach((col, idx) => {
+      const raw = vals[idx] !== undefined ? String(vals[idx]).trim() : '';
+      const normalized = raw.replace(/^['"]|['"]$/g, '').trim();
+      if (normalized === '') { row[col] = null; return; }
+      const numText = normalized.replace(/\\s/g, '').replace(/\\.(?=\\d{3}(?:\\D|$))/g, '').replace(',', '.');
+      const num = Number(numText);
+      row[col] = Number.isFinite(num) && /^[-+]?\\d*(?:[.,]\\d+)?(?:[eE][-+]?\\d+)?$/.test(normalized.replace(/\\./g, '.')) ? num : normalized;
+    });
+    return row;
+  });
+}
+
+function handleBeforeAfterFileSelect(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const parsed = parseComparisonCSV(evt.target.result);
+    if(!parsed) {
+      comparisonAfterData = [];
+      comparisonAfterFileName = '';
+      document.getElementById('ba-file-status').innerHTML = '<strong>ANTES:</strong> arquivo original &nbsp;|&nbsp; <strong>DEPOIS:</strong> arquivo inválido ou vazio.';
+      return alert('O arquivo para comparação parece estar vazio ou inválido.');
+    }
+    comparisonAfterData = parsed;
+    comparisonAfterFileName = file.name;
+    document.getElementById('ba-file-status').innerHTML =
+      `<strong>ANTES:</strong> arquivo original (${globalData.length} linhas) &nbsp;|&nbsp; <strong>DEPOIS:</strong> ${escapeHtml(file.name)} (${parsed.length} linhas)`;
+  };
+  reader.readAsText(file);
+}
+
+async function runBeforeAfter() {
+  const val = document.getElementById('ba-val').value;
+  if(!val) return alert('Selecione a variável de resposta.');
+  if(!globalData.length) return alert('Carregue primeiro o arquivo original.');
+  if(!comparisonAfterData.length) return alert('Adicione o arquivo para comparação (DEPOIS).');
+
+  const resStr = await pyodide.runPythonAsync(
+    `py_before_after(${JSON.stringify(JSON.stringify(globalData))}, ${JSON.stringify(JSON.stringify(comparisonAfterData))}, ${JSON.stringify(val)})`
+  );
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  const fmt = (v, d=4) => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : Number(v).toFixed(d);
+  const fmtP = v => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : (Number(v) < 0.001 ? '< 0.001' : Number(v).toFixed(4));
+  const shapiro1Text = res.shapiro1_p == null ? 'N/D' : (res.shapiro1_p < 0.05 ? 'Evidência de desvio da normalidade' : 'Sem evidência de desvio da normalidade');
+  const shapiro2Text = res.shapiro2_p == null ? 'N/D' : (res.shapiro2_p < 0.05 ? 'Evidência de desvio da normalidade' : 'Sem evidência de desvio da normalidade');
+  const leveneText = res.levene_p == null ? 'N/D' : (res.levene_p < 0.05 ? 'Evidência de variâncias diferentes' : 'Sem evidência de variâncias diferentes');
+
+  document.getElementById('ba-metrics').innerHTML = `
+    <div class="metric-card" style="border-left:4px solid #C77A1F;"><div class="metric-value">${fmt(res.mean1)}</div><div class="metric-label">Média — ANTES</div></div>
+    <div class="metric-card" style="border-left:4px solid #1E8F5F;"><div class="metric-value">${fmt(res.mean2)}</div><div class="metric-label">Média — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.diff)}</div><div class="metric-label">Diferença Absoluta (DEPOIS − ANTES)</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.pct_change,2)}%</div><div class="metric-label">Variação % (Depois vs. Antes)</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.p)}</div><div class="metric-label">P-valor — t de Welch</div></div>
+    <div class="metric-card"><div class="metric-value">${res.ci95_low == null ? 'N/D' : `[${fmt(res.ci95_low)} ; ${fmt(res.ci95_high)}]`}</div><div class="metric-label">IC 95% da Diferença</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.hedges_g)}</div><div class="metric-label">Hedges' g — Tamanho do efeito</div></div>
+    <div class="metric-card"><div class="metric-value">${res.n1}</div><div class="metric-label">N — ANTES</div></div>
+    <div class="metric-card"><div class="metric-value">${res.n2}</div><div class="metric-label">N — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.std1)}</div><div class="metric-label">Desvio Padrão — ANTES</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.std2)}</div><div class="metric-label">Desvio Padrão — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.median1)}</div><div class="metric-label">Mediana — ANTES</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.median2)}</div><div class="metric-label">Mediana — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.iqr1)}</div><div class="metric-label">IQR — ANTES</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.iqr2)}</div><div class="metric-label">IQR — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.median_diff)}</div><div class="metric-label">Diferença de Medianas</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.mw_u)}</div><div class="metric-label">U — Mann-Whitney</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.mw_p)}</div><div class="metric-label">P-valor — Mann-Whitney</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.shapiro1_p)}</div><div class="metric-label">Shapiro-Wilk p — ANTES</div><div class="metric-label" style="margin-top:4px;">${shapiro1Text}</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.shapiro2_p)}</div><div class="metric-label">Shapiro-Wilk p — DEPOIS</div><div class="metric-label" style="margin-top:4px;">${shapiro2Text}</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.levene_p)}</div><div class="metric-label">Levene p — variâncias</div><div class="metric-label" style="margin-top:4px;">${leveneText}</div></div>
+  `;
+
+  const ctx = document.getElementById('ba-chart').getContext('2d');
+  if(window.__charts['ba']) window.__charts['ba'].destroy();
+  window.__charts['ba'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['ANTES', 'DEPOIS'],
+      datasets: [{ label: 'Média', data: [res.mean1, res.mean2], backgroundColor: ['#C77A1F', '#1E8F5F'] }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true } }
+    }
+  });
+
+  const thresholdRaw = document.getElementById('ba-practical-threshold').value;
+  const threshold = thresholdRaw === '' ? null : Number(thresholdRaw);
+  const direction = document.getElementById('ba-practical-direction').value;
+  let practicalText = 'Nenhum limite de relevância prática foi informado.';
+  if(threshold !== null && Number.isFinite(threshold) && threshold >= 0) {
+    const absDiff = Math.abs(res.diff);
+    const reachesThreshold = absDiff >= threshold;
+    let directionText = 'sem direção definida';
+    let directionConsistent = true;
+    if(direction === 'higher') { directionText = 'maior é desejado'; directionConsistent = res.diff > 0; }
+    if(direction === 'lower') { directionText = 'menor é desejado'; directionConsistent = res.diff < 0; }
+    practicalText = `Mudança mínima informada: ${fmt(threshold)}; diferença observada: ${fmt(res.diff)}. ${reachesThreshold ? 'A magnitude observada atinge ou supera' : 'A magnitude observada não atinge'} esse limite. Direção configurada: ${directionText}${direction ? (directionConsistent ? '; a direção observada é compatível com a direção informada.' : '; a direção observada é oposta à direção informada.') : '.'}`;
+  }
+  const statText = res.p < 0.05 ? 'O teste t de Welch indica diferença estatisticamente significativa entre as médias (p < 0,05).' : 'O teste t de Welch não indica diferença estatisticamente significativa entre as médias (p ≥ 0,05).';
+  const effectAbs = res.hedges_g == null ? null : Math.abs(res.hedges_g);
+  const effectText = effectAbs == null ? 'Tamanho do efeito não disponível.' : `Hedges' g = ${fmt(res.hedges_g)}, quantificando a magnitude padronizada da diferença; isso não determina se a mudança é benéfica.`;
+  const robustText = res.mw_p < 0.05 ? 'O Mann-Whitney também encontrou diferença estatisticamente significativa.' : 'O Mann-Whitney não encontrou diferença estatisticamente significativa.';
+  document.getElementById('ba-interp').innerHTML =
+    `<strong>Interpretação:</strong> Para ${escapeHtml(val)}, a diferença observada foi de ${fmt(res.diff)} (${fmt(res.pct_change,2)}%). O IC 95% da diferença é ${res.ci95_low == null ? 'N/D' : `[${fmt(res.ci95_low)} ; ${fmt(res.ci95_high)}]`}. ${statText} ${robustText} ${effectText} ${shapiro1Text} (ANTES) e ${shapiro2Text} (DEPOIS). ${leveneText}. ${practicalText} A direção desejável deve ser definida pelo contexto do indicador; os resultados estatísticos, isoladamente, não classificam a mudança como melhoria ou piora.`;
+
+  // Carta de Controle I — usa as observações individuais dos dois arquivos.
+  // Os limites são estimados somente com o período ANTES, preservando o
+  // segundo arquivo exclusivamente para a comparação.
+  const beforeValues = globalData
+    .map(row => Number(row[val]))
+    .filter(v => Number.isFinite(v));
+
+  const afterValues = comparisonAfterData
+    .map(row => Number(row[val]))
+    .filter(v => Number.isFinite(v));
+
+  if(!beforeValues.length || !afterValues.length) return;
+
+  const beforeMean = beforeValues.reduce((sum, v) => sum + v, 0) / beforeValues.length;
+
+  let sigmaBefore = 0;
+  if(beforeValues.length > 1) {
+    let mrSum = 0;
+    for(let i = 1; i < beforeValues.length; i++) {
+      mrSum += Math.abs(beforeValues[i] - beforeValues[i - 1]);
+    }
+    const meanMR = mrSum / (beforeValues.length - 1);
+    sigmaBefore = meanMR / 1.128;
+  }
+
+  const ucl = beforeMean + 3 * sigmaBefore;
+  const lcl = beforeMean - 3 * sigmaBefore;
+  const allValues = beforeValues.concat(afterValues);
+  const labels = allValues.map((_, i) => String(i + 1));
+  const beforeCount = beforeValues.length;
+  const afterMean = afterValues.reduce((sum, v) => sum + v, 0) / afterValues.length;
+
+  const beforeData = beforeValues.concat(Array(afterValues.length).fill(null));
+  const afterData = Array(beforeValues.length).fill(null).concat(afterValues);
+  const fullCL = Array(allValues.length).fill(beforeMean);
+  const fullUCL = Array(allValues.length).fill(ucl);
+  const fullLCL = Array(allValues.length).fill(lcl);
+  const afterMeanData = Array(beforeValues.length).fill(null).concat(Array(afterValues.length).fill(afterMean));
+
+  const beforePointColors = beforeValues.map(v => (v > ucl || v < lcl) ? '#C0392B' : '#C77A1F');
+  const afterPointColors = afterValues.map(v => (v > ucl || v < lcl) ? '#C0392B' : '#1E8F5F');
+
+  const controlCtx = document.getElementById('ba-control-chart').getContext('2d');
+  if(window.__charts['ba-control']) window.__charts['ba-control'].destroy();
+
+  const beforeAfterDivider = {
+    id: 'baBeforeAfterDivider',
+    afterDraw(chart) {
+      if(!chart.chartArea || beforeCount <= 0 || beforeCount >= allValues.length) return;
+
+      const xBefore = chart.scales.x.getPixelForValue(beforeCount - 1);
+      const xAfter = chart.scales.x.getPixelForValue(beforeCount);
+      const x = (xBefore + xAfter) / 2;
+      const top = chart.chartArea.top;
+      const bottom = chart.chartArea.bottom;
+      const ctx = chart.ctx;
+
+      ctx.save();
+      ctx.strokeStyle = '#51617C';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.font = '600 11px "IBM Plex Mono", monospace';
+      ctx.fillStyle = '#C77A1F';
+      ctx.textAlign = 'right';
+      ctx.fillText('ANTES', x - 7, top - 8);
+
+      ctx.fillStyle = '#1E8F5F';
+      ctx.textAlign = 'left';
+      ctx.fillText('DEPOIS', x + 7, top - 8);
+      ctx.restore();
+    }
+  };
+
+  window.__charts['ba-control'] = new Chart(controlCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'ANTES',
+          data: beforeData,
+          borderColor: '#C77A1F',
+          backgroundColor: '#C77A1F',
+          pointBackgroundColor: beforePointColors,
+          pointBorderColor: beforePointColors,
+          pointRadius: 3.5,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          tension: 0,
+          spanGaps: false
+        },
+        {
+          label: 'DEPOIS',
+          data: afterData,
+          borderColor: '#1E8F5F',
+          backgroundColor: '#1E8F5F',
+          pointBackgroundColor: afterPointColors,
+          pointBorderColor: afterPointColors,
+          pointRadius: 3.5,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          tension: 0,
+          spanGaps: false
+        },
+        {
+          label: 'CL — Média ANTES',
+          data: fullCL,
+          borderColor: '#51617C',
+          borderDash: [6, 4],
+          pointRadius: 0,
+          borderWidth: 1.5
+        },
+        {
+          label: 'UCL — Limite Superior',
+          data: fullUCL,
+          borderColor: '#C0392B',
+          borderDash: [3, 3],
+          pointRadius: 0,
+          borderWidth: 1.3
+        },
+        {
+          label: 'LCL — Limite Inferior',
+          data: fullLCL,
+          borderColor: '#C0392B',
+          borderDash: [3, 3],
+          pointRadius: 0,
+          borderWidth: 1.3
+        },
+        {
+          label: 'Média DEPOIS',
+          data: afterMeanData,
+          borderColor: '#1E8F5F',
+          borderDash: [2, 5],
+          pointRadius: 0,
+          borderWidth: 1.3
+        }
+      ]
+    },
+    plugins: [beforeAfterDivider],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            title: items => `Observação ${items[0].label}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Sequência das observações' },
+          ticks: { maxTicksLimit: 20 }
+        },
+        y: {
+          title: { display: true, text: val }
+        }
+      }
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const baFile = document.getElementById('ba-after-file');
+  if(baFile) baFile.addEventListener('change', handleBeforeAfterFileSelect);
+});
+
+async function runDOE() {
+  const a = document.getElementById('doe-a').value;
+  const b = document.getElementById('doe-b').value;
+  const c = document.getElementById('doe-c').value;
+  const y = document.getElementById('doe-y').value;
+  if(!a || !b || !y) return alert('Preencha os fatores A, B e a Resposta Y.');
+  const resStr = await pyodide.runPythonAsync(`py_doe('${JSON.stringify(globalData)}', '${a}', '${b}', '${c}', '${y}')`);
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('doe-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${res.r2.toFixed(4)}</div><div class="metric-label">R² do Modelo</div></div>
+  `;
+  let labels = res.effects.map(e => e.effect);
+  let values = res.effects.map(e => e.value);
+  const ctx = document.getElementById('doe-chart').getContext('2d');
+  if(window.__charts['doe']) window.__charts['doe'].destroy();
+  window.__charts['doe'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: labels, datasets: [{ label: 'Efeito Estimado', data: values, backgroundColor: '#C77A1F' }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+  document.getElementById('doe-interp').innerHTML = `<strong>Interpretação:</strong> O planejamento de experimentos (DOE) avaliou o impacto dos fatores principais e interações sobre ${y} (R² = ${res.r2.toFixed(4)}).`;
+}
+
+// Relatório Executivo
+function collectReportParams(panel) {
+  const parts = [];
+  panel.querySelectorAll('.field').forEach(f => {
+    if (getComputedStyle(f).display === 'none') return;
+    const label = f.querySelector('label');
+    if (!label) return;
+    let value = '';
+    const multi = f.querySelectorAll('.reg-m-x-check');
+    if (multi.length) {
+      value = Array.from(multi).filter(c => c.checked).map(c => c.value).join(', ');
+    } else {
+      const ctrl = f.querySelector('select, input');
+      if (!ctrl || ctrl.type === 'file') return;
+      if (ctrl.tagName === 'SELECT') {
+        const opt = ctrl.options[ctrl.selectedIndex];
+        value = opt ? opt.text : '';
+      } else {
+        value = ctrl.value;
+      }
+    }
+    if (String(value).trim() === '') return;
+    parts.push(`<strong>${escapeHtml(label.textContent.trim())}</strong>: ${escapeHtml(value)}`);
+  });
+  return parts.join(' &nbsp;·&nbsp; ');
+}
+
+function panelHasResults(panel) {
+  if (Array.from(panel.querySelectorAll('.interp-box, .metrics-grid')).some(e => e.textContent.trim() !== '')) return true;
+  if (panel.querySelector('table.result-table')) return true;
+  return Array.from(panel.querySelectorAll('canvas')).some(cv => {
+    try { return typeof Chart !== 'undefined' && Chart.getChart && !!Chart.getChart(cv); } catch (e) { return false; }
+  });
+}
+
+function buildToolReport(panel, num) {
+  const h4 = panel.querySelector('h4');
+  const title = h4 ? h4.textContent.trim() : 'Ferramenta';
+  const params = collectReportParams(panel);
+  const clone = panel.cloneNode(true);
+
+  // Gráficos (canvas) -> imagens estáticas do que está na tela
+  const origCanvases = panel.querySelectorAll('canvas');
+  const cloneCanvases = clone.querySelectorAll('canvas');
+  origCanvases.forEach((cv, i) => {
+    const cc = cloneCanvases[i];
+    const box = cc.closest('.chart-box') || cc.parentElement;
+    let chart = null;
+    try { chart = (typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(cv) : null; } catch (e) {}
+    if (chart) {
+      try { chart.update('none'); } catch (e) {}
+      const wrap = document.createElement('div');
+      wrap.className = 'report-chart-wrap';
+      const img = document.createElement('img');
+      img.alt = 'Gráfico — ' + title;
+      img.src = cv.toDataURL('image/png');
+      wrap.appendChild(img);
+      box.replaceWith(wrap);
+    } else {
+      box.remove();
+    }
+  });
+  clone.querySelectorAll('.chart-row').forEach(r => { if (!r.children.length) r.remove(); });
+
+  // Descrição genérica que antecede os controles não entra no relatório
+  let passedControls = false;
+  Array.from(clone.children).forEach(ch => {
+    if (ch.classList.contains('controls-row')) passedControls = true;
+    else if (!passedControls && ch.classList.contains('desc')) ch.remove();
+  });
+
+  // Remove título original, controles e blocos ainda vazios
+  clone.querySelectorAll('h4, .field, .controls-row, button, input, select').forEach(e => e.remove());
+  clone.querySelectorAll('.metrics-grid, .interp-box, [id$="container"], [id$="-table"]').forEach(e => {
+    if (!e.textContent.trim() && !e.querySelector('img, table')) e.remove();
+  });
+  clone.removeAttribute('id');
+  clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+
+  const wrap = document.createElement('div');
+  wrap.className = 'report-tool';
+  wrap.innerHTML = `<h5>${num}. ${escapeHtml(title)}</h5>` + (params ? `<div class="report-params">${params}</div>` : '');
+  while (clone.firstChild) wrap.appendChild(clone.firstChild);
+  return wrap;
+}
+
+function openReportModal() {
+  const modal = document.getElementById('report-modal');
+  const projectInput = document.getElementById('project-name');
+  const title = (projectInput && projectInput.value) || 'Projeto de Melhoria Seis Sigma';
+  document.getElementById('report-title').textContent = `Relatório Executivo — ${title}`;
+
+  const activeBtn = document.querySelector('.tab-btn.active');
+  const stage = activeBtn ? activeBtn.textContent.trim() : '';
+  const activeMain = document.querySelector('main.tab-content.active');
+  const tabColor = activeMain ? activeMain.style.getPropertyValue('--tab-color').trim() : '';
+  if (tabColor) modal.style.setProperty('--tab-color', tabColor);
+  const fileInput = document.getElementById('csvFile');
+  const fileName = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0].name : '';
+
+  document.getElementById('report-body').innerHTML = `
+    <div class="report-section report-meta">
+      <h4>1. Visão Geral do Projeto</h4>
+      <p>Projeto: <strong>${escapeHtml(title)}</strong></p>
+      ${stage ? `<p>Etapa DMAIC: <strong>${escapeHtml(stage)}</strong></p>` : ''}
+      ${fileName ? `<p>Arquivo de dados: <strong>${escapeHtml(fileName)}</strong></p>` : ''}
+      <p>Total de registros analisados: ${globalData.length}</p>
+      <p>Variáveis: ${columns.length} (numéricas: ${numericCols.length} · categóricas: ${categoricalCols.length})</p>
+      <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+    </div>
+    <div class="report-section" id="report-analyses">
+      <h4>2. Análises Executadas em Tela</h4>
+    </div>
+  `;
+
+  const holder = document.getElementById('report-analyses');
+  const openPanels = Array.from(document.querySelectorAll('.tool-panel.open'));
+  let count = 0, skipped = 0;
+  openPanels.forEach(panel => {
+    if (!panelHasResults(panel)) { skipped++; return; }
+    count++;
+    holder.appendChild(buildToolReport(panel, `2.${count}`));
+  });
+  if (!count) {
+    const p = document.createElement('p');
+    p.textContent = globalData.length
+      ? 'Nenhuma análise foi executada nas ferramentas abertas em tela. Abra uma ferramenta na lista à esquerda, clique em Executar e gere o relatório novamente.'
+      : 'Nenhum dado foi carregado e nenhuma análise foi executada ainda. Carregue um arquivo CSV, execute as ferramentas desejadas e gere o relatório novamente.';
+    holder.appendChild(p);
+  } else if (skipped) {
+    const p = document.createElement('p');
+    p.className = 'report-note';
+    p.textContent = `${skipped} ferramenta(s) aberta(s) sem resultados não foram incluídas.`;
+    holder.appendChild(p);
+  }
+
+  modal.style.display = 'flex';
+  const content = modal.querySelector('.modal-content');
+  if (content) content.scrollTop = 0;
+}
+
+function exportReportPDF() {
+  const previousTitle = document.title;
+  const activeBtn = document.querySelector('.tab-btn.active');
+  const stage = (activeBtn ? activeBtn.textContent.trim() : 'Painel')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_');
+  document.title = `Relatorio_DMAIC_${stage}_${new Date().toISOString().slice(0, 10)}`;
+  const restoreTitle = () => {
+    document.title = previousTitle;
+    window.removeEventListener('afterprint', restoreTitle);
+  };
+  window.addEventListener('afterprint', restoreTitle);
+  window.print();
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal').style.display = 'none';
+}
+
+window.addEventListener('DOMContentLoaded', initPyodideEngine);
+</script>
+</body>
+</html>
