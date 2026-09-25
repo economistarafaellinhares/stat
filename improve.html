@@ -1,0 +1,2041 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMAIC Studio — Painel Estatístico Seis Sigma</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F6;
+  --surface:#FFFFFF;
+  --ink:#12203A;
+  --ink-soft:#51617C;
+  --border:#D7DCE6;
+  --measure:#0E7C86;
+  --analyze:#6D4AFF;
+  --improve:#C77A1F;
+  --control:#1E8F5F;
+  --forecast:#8E44AD;
+  --danger:#C0392B;
+  --warning:#B9770E;
+  --success:#1E8F5F;
+  --accent:var(--measure);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:14px;
+  line-height:1.5;
+}
+h1,h2,h3,h4,.brand,.tab-btn,.section-title{font-family:'Space Grotesk',sans-serif;}
+::selection{background:var(--accent);color:#fff;}
+
+header.app-header{
+  background:var(--ink);
+  color:#fff;
+  padding:22px 28px 18px;
+  border-bottom:4px solid var(--measure);
+}
+.header-row{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;}
+.brand{font-size:22px;font-weight:700;}
+.brand small{display:block;font-size:11px;color:#9DB0CE;font-weight:400;margin-top:2px;}
+.project-field{display:flex;flex-direction:column;gap:4px;}
+.project-field label{font-size:10px;color:#9DB0CE;text-transform:uppercase;letter-spacing:.08em;}
+.project-field input{
+  background:transparent;border:none;border-bottom:1px solid #3C4A63;
+  color:#fff;font-family:'Space Grotesk',sans-serif;font-size:15px;padding:4px 2px;min-width:240px;
+}
+.project-field input:focus{outline:none;border-bottom-color:var(--measure);}
+
+.upload-bar{max-width:1240px;margin:20px auto 0;padding:0 24px;}
+.upload-zone{
+  background:var(--surface);border:1.5px dashed var(--border);border-radius:6px;
+  padding:18px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;transition:.15s;cursor:pointer;
+}
+.upload-zone:hover{border-color:var(--measure);}
+.upload-zone.drag{border-color:var(--measure);background:#F1FAFA;}
+.upload-zone .icon{
+  width:40px;height:40px;flex:0 0 auto;border-radius:6px;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;color:var(--measure);font-size:20px;
+}
+.upload-zone .text strong{display:block;font-family:'Space Grotesk',sans-serif;font-size:14px;}
+.upload-zone .text span{color:var(--ink-soft);font-size:12px;}
+.upload-zone input[type=file]{display:none;}
+
+.status-banner{margin-top:10px;padding:9px 14px;border-radius:4px;font-size:12.5px;display:none;}
+.status-ok{background:#E7F6EF;color:#1E8F5F;border:1px solid #B9E5CE;display:block;}
+.status-error{background:#FBEAE8;color:var(--danger);border:1px solid #F0C6C0;display:block;}
+.status-load{background:#E8F4F8;color:var(--measure);border:1px solid #B6D8E2;display:block;}
+
+.progress-container{margin-top:8px;background:var(--border);border-radius:4px;overflow:hidden;height:8px;display:none;}
+.progress-fill{background:var(--measure);height:100%;width:0%;transition:width 0.2s ease;}
+
+.preview-wrap{margin-top:14px;overflow:auto;max-height:220px;border:1px solid var(--border);border-radius:6px;display:none;background:#fff;}
+.upload-zone.loaded ~ .preview-wrap{display:block;}
+table.preview-table{border-collapse:collapse;width:100%;font-size:11.5px;}
+.preview-table th{background:var(--bg);position:sticky;top:0;text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.preview-table td{padding:5px 10px;border-bottom:1px solid #EEF1F6;white-space:nowrap;}
+
+.tabs-nav{max-width:1240px;margin:22px auto 0;padding:0 24px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);justify-content:flex-end;align-items:center;}
+.tab-buttons{display:flex;gap:4px;flex-wrap:wrap;}
+.tab-btn{
+  border:none;background:transparent;padding:11px 18px;font-size:13px;font-weight:600;
+  color:var(--ink-soft);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;
+}
+.tab-btn.active{color:var(--ink);border-bottom-color:var(--tab-color,var(--measure));}
+.tab-btn .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:var(--tab-color,var(--measure));}
+
+/* Navegação entre fases DMAIC (padronizada em todas as páginas) */
+.phase-nav{display:flex;gap:2px;flex-wrap:wrap;}
+.phase-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600;color:#9DB0CE;text-decoration:none;border:1px solid transparent;transition:.15s;}
+.phase-btn:hover{color:#fff;border-color:#3C4A63;}
+.phase-btn .dot{width:7px;height:7px;border-radius:50%;background:var(--phase-color);flex:0 0 auto;margin:0;}
+.phase-btn.current{color:#fff;background:rgba(255,255,255,.08);border-color:var(--phase-color);cursor:default;}
+
+/* Separador decimal do upload (padronizado em todas as páginas) */
+.upload-options{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;}
+.upload-options label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);}
+.upload-options select{border:1px solid var(--border);border-radius:4px;padding:5px 8px;font-family:inherit;font-size:12px;background:#fff;}
+.hint{color:var(--ink-soft);font-size:12px;}
+
+.actions-top{display:flex;gap:10px;padding-bottom:6px;}
+.btn-secondary{
+  border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:4px;
+  padding:7px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;transition:.12s;font-weight:600;
+}
+.btn-secondary:hover{border-color:var(--ink);}
+
+main{max-width:1240px;margin:0 auto;padding:24px;display:none;gap:24px;}
+main.active{display:grid;grid-template-columns:280px 1fr;}
+@media(max-width:900px){main.active{grid-template-columns:1fr;}}
+
+.checklist{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;align-self:start;position:sticky;top:20px;max-height:85vh;overflow-y:auto;}
+.checklist h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin:16px 0 8px;}
+.checklist h3:first-child{margin-top:0;}
+.tool-item{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-radius:5px;cursor:pointer;}
+.tool-item:hover{background:var(--bg);}
+.tool-item input{margin-top:3px;accent-color:var(--tab-color,var(--measure));}
+.tool-item span{font-size:12.5px;line-height:1.35;}
+
+.panels{display:flex;flex-direction:column;gap:16px;}
+.tool-panel{display:none;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--tab-color,var(--measure));border-radius:8px;padding:20px 22px;}
+.tool-panel.open{display:block;}
+.tool-panel h4{margin:0 0 4px;font-size:16px;}
+.tool-panel .desc{color:var(--ink-soft);font-size:12.5px;margin-bottom:14px;}
+
+.controls-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);}
+.field select,.field input[type=number],.field input[type=text]{
+  border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;min-width:150px;background:#fff;
+}
+.btn{
+  border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:4px;
+  padding:9px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;cursor:pointer;transition:.12s;
+}
+.btn:hover{opacity:.85;}
+
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;}
+.metric-card{background:var(--bg);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;}
+.metric-value{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:var(--ink);word-break:break-word;}
+.metric-label{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
+
+.chart-box{height:320px;margin-bottom:14px;position:relative;}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:720px){.chart-row{grid-template-columns:1fr;}}
+
+.interp-box{background:#F5F7FB;border-left:3px solid var(--tab-color,var(--measure));border-radius:4px;padding:12px 14px;font-size:12.5px;color:var(--ink);min-height:18px;margin-top:10px;}
+.interp-box:empty::before{content:"A interpretação estatística automática aparecerá aqui após executar a análise.";color:var(--ink-soft);}
+
+.result-table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:12px;}
+.result-table th{background:var(--bg);text-align:left;padding:8px;border-bottom:1px solid var(--border);}
+.result-table td{padding:7px 8px;border-bottom:1px solid #EEF1F6;}
+
+/* Modal Relatório */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(18,32,58,0.6);display:none;justify-content:center;align-items:center;z-index:1000;padding:20px;}
+.modal-content{background:var(--surface);border-radius:8px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;padding:30px;box-shadow:0 10px 30px rgba(0,0,0,0.2);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px;}
+.modal-header h3{margin:0;font-size:20px;}
+.modal-close{background:transparent;border:none;font-size:18px;cursor:pointer;color:var(--ink-soft);}
+.report-section{margin-bottom:20px;}
+.report-section h4{margin:0 0 8px;color:var(--measure);border-bottom:1px solid var(--border);padding-bottom:4px;}
+
+footer{text-align:center;color:var(--ink-soft);font-size:11px;padding:26px 0 34px;}
+/* Relatório: análises em tela + exportação PDF */
+.report-meta p{margin:3px 0;font-size:12.5px;}
+.report-tool{margin:0 0 20px;overflow-x:auto;}
+.report-tool h5{font-family:'Space Grotesk',sans-serif;font-size:14px;margin:14px 0 6px;color:var(--ink);}
+.report-params{font-size:11.5px;color:var(--ink-soft);background:#F5F7FB;border-radius:4px;padding:6px 10px;margin-bottom:10px;}
+.report-chart-wrap{margin-bottom:12px;}
+.report-chart-wrap img{display:block;width:100%;height:auto;}
+.report-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+@media print{
+  @page{size:A4;margin:14mm 12mm;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  html,body{background:#fff !important;}
+  body > *:not(#report-modal){display:none !important;}
+  #report-modal{position:static !important;display:block !important;width:auto !important;height:auto !important;padding:0 !important;background:none !important;}
+  .modal-content{max-width:none !important;width:auto !important;max-height:none !important;overflow:visible !important;box-shadow:none !important;padding:0 !important;border-radius:0 !important;}
+  .modal-close,.modal-actions{display:none !important;}
+  .report-tool{overflow:visible;}
+  .report-tool h5,.report-section h4{break-after:avoid;}
+  .metric-card,.report-chart-wrap,.interp-box,.result-table tr{break-inside:avoid;}
+  .result-table{font-size:10px;}
+}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="header-row">
+    <div class="brand">DMAIC Studio<small>Painel Estatístico Seis Sigma · Fase Improve</small></div>
+    <nav class="phase-nav" aria-label="Navegação entre fases DMAIC">
+      <a href="index.html" class="phase-btn" style="--phase-color:#0E7C86;"><span class="dot"></span>Measure</a>
+      <a href="analyseindex.html" class="phase-btn" style="--phase-color:#6D4AFF;"><span class="dot"></span>Analyze</a>
+      <a href="improve.html" class="phase-btn current" style="--phase-color:#C77A1F;"><span class="dot"></span>Improve</a>
+      <a href="Control.html" class="phase-btn" style="--phase-color:#1E8F5F;"><span class="dot"></span>Control</a>
+    </nav>
+    <div class="project-field"><label for="project-name">Projeto</label><input id="project-name" type="text" placeholder="Nome do projeto de melhoria"></div>
+  </div>
+</header>
+<script>(function(){var i=document.getElementById('project-name');if(!i)return;var s=localStorage.getItem('dmaic-project-name');if(s&&!i.value)i.value=s;i.addEventListener('input',function(){localStorage.setItem('dmaic-project-name',i.value);});})();</script>
+
+<div class="upload-bar">
+  <label class="upload-zone" id="upload-zone" for="csvFile">
+    <div class="icon">⇪</div>
+    <div class="text">
+      <strong>Carregar dados do processo (.csv / .xlsx / .xls)</strong>
+      <span>Processamento 100% local no navegador via WebAssembly (Pyodide)</span>
+    </div>
+    <input type="file" id="csvFile" accept=".csv,.txt,.xlsx,.xls">
+  </label>
+  <button type="button" class="btn-secondary" id="btn-sample" style="margin-top:10px;">🧪 Usar dados de exemplo</button>
+  <div class="upload-options">
+    <label for="decimal-mode">Separador decimal</label>
+    <select id="decimal-mode"><option value="auto">Automático (recomendado)</option><option value="dot">Ponto — 1234.56</option><option value="comma">Vírgula — 1234,56</option></select>
+    <span class="hint">Valores como 0.125 ou 12,345 são interpretados pelo padrão do arquivo inteiro; force aqui se a detecção errar.</span>
+  </div>
+  <div class="status-banner" id="status-banner"></div>
+  <div class="progress-container" id="progress-container">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div class="preview-wrap"><div id="data-preview"></div></div>
+</div>
+
+<nav class="tabs-nav" id="tabs-nav">
+  <div class="actions-top">
+    <button class="btn-secondary" onclick="openReportModal()">📄 Gerar Relatório Executivo</button>
+  </div>
+</nav>
+
+<!-- IMPROVE -->
+<main class="tab-content active" id="tab-improve" style="--tab-color:#C77A1F;">
+  <aside class="checklist">
+    <h3>Melhoria & Validação</h3>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-before-after"><span>Comparação Antes × Depois</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-doe"><span>Planejamento de Experimentos (DOE, fatorial até 2⁴)</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-samplesize"><span>Tamanho de Amostra & Poder Estatístico</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-montecarlo"><span>Simulação de Monte Carlo (Processo Melhorado)</span></label>
+    <label class="tool-item"><input type="checkbox" class="tool-check" data-target="panel-rsm"><span>Otimização por Superfície de Resposta</span></label>
+  </aside>
+  <div class="panels">
+    <section class="tool-panel" id="panel-before-after">
+      <h4>Comparação Antes × Depois (Validação de Melhoria)</h4>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta</label><select id="ba-val" class="data-select" data-kind="numeric"></select></div>
+        <div class="field">
+          <label>Adicionar arquivo para comparação</label>
+          <input type="file" id="ba-after-file" accept=".csv,.txt,.xlsx,.xls" style="border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;background:#fff;min-width:250px;">
+        </div>
+        <div class="field">
+          <label>Mudança mínima de interesse prático (opcional)</label>
+          <input type="number" id="ba-practical-threshold" step="any" min="0" placeholder="Ex.: 5" style="border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;background:#fff;min-width:170px;">
+        </div>
+        <div class="field">
+          <label>Direção desejada</label>
+          <select id="ba-practical-direction" style="border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;background:#fff;min-width:150px;">
+            <option value="">Sem direção definida</option>
+            <option value="higher">Maior é desejado</option>
+            <option value="lower">Menor é desejado</option>
+          </select>
+        </div>
+        <button class="btn" onclick="runBeforeAfter()">Executar Comparação</button>
+      </div>
+      <div class="controls-row">
+        <label class="tool-item" style="padding:0;"><input type="checkbox" id="ba-paired"><span>Dados pareados (mesmas unidades, mesma ordem de linha ANTES/DEPOIS)</span></label>
+        <div class="field"><label>LIE — Limite Inferior de Especificação (opcional)</label><input type="number" id="ba-lsl" step="any" placeholder="Ex.: 10"></div>
+        <div class="field"><label>LSE — Limite Superior de Especificação (opcional)</label><input type="number" id="ba-usl" step="any" placeholder="Ex.: 20"></div>
+        <div class="field"><label>Delta de equivalência — TOST (opcional)</label><input type="number" id="ba-tost-delta" step="any" min="0" placeholder="Ex.: 2"></div>
+      </div>
+      <div id="ba-file-status" style="margin:-4px 0 14px;padding:8px 10px;border-radius:4px;background:#F5F7FB;color:var(--ink-soft);font-size:11.5px;">
+        <strong>ANTES:</strong> arquivo original &nbsp;|&nbsp; <strong>DEPOIS:</strong> adicione o arquivo para comparação.
+      </div>
+      <div id="ba-recommend" class="interp-box" style="margin-top:0;margin-bottom:14px;"></div>
+      <div class="metrics-grid" id="ba-metrics"></div>
+      <div class="metrics-grid" id="ba-paired-metrics"></div>
+      <div class="metrics-grid" id="ba-capability-metrics"></div>
+      <div class="chart-box"><canvas id="ba-chart"></canvas></div>
+      <div class="desc" style="margin-top:4px;margin-bottom:8px;">Carta de Controle — observações individuais (I) com limites calculados a partir do ANTES.</div>
+      <div class="chart-box" style="height:360px;"><canvas id="ba-control-chart"></canvas></div>
+      <div class="interp-box" id="ba-interp"></div>
+    </section>
+    <section class="tool-panel" id="panel-doe">
+      <h4>Planejamento de Experimentos (DOE — Fatorial Completo até 2⁴)</h4>
+      <div class="controls-row">
+        <div class="field"><label>Fator A (-1 / +1)</label><select id="doe-a" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Fator B (-1 / +1)</label><select id="doe-b" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Fator C (Opcional)</label><select id="doe-c" class="data-select" data-kind="numeric" data-optional="true"><option value="">Nenhum</option></select></div>
+        <div class="field"><label>Fator D (Opcional)</label><select id="doe-d" class="data-select" data-kind="numeric" data-optional="true"><option value="">Nenhum</option></select></div>
+        <div class="field"><label>Resposta (Y)</label><select id="doe-y" class="data-select" data-kind="numeric"></select></div>
+        <button class="btn" onclick="runDOE()">Executar DOE</button>
+      </div>
+      <div class="metrics-grid" id="doe-metrics"></div>
+
+      <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin:18px 0 8px;">Tabela ANOVA (Tipo II)</h3>
+      <div style="overflow-x:auto;"><table class="result-table" id="doe-anova-table"></table></div>
+
+      <div class="chart-row">
+        <div>
+          <div class="desc" style="margin-bottom:6px;">Pareto dos Efeitos Padronizados</div>
+          <div class="chart-box"><canvas id="doe-pareto-chart"></canvas></div>
+        </div>
+        <div>
+          <div class="desc" style="margin-bottom:6px;">Gráfico Half-Normal dos Efeitos</div>
+          <div class="chart-box"><canvas id="doe-halfnormal-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-row">
+        <div>
+          <div class="desc" style="margin-bottom:6px;">Efeitos Principais (média da resposta por nível)</div>
+          <div class="chart-box"><canvas id="doe-main-effects-chart"></canvas></div>
+        </div>
+        <div>
+          <div class="desc" style="margin-bottom:6px;">Gráfico de Interação (A × B)</div>
+          <div class="chart-box"><canvas id="doe-interaction-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-row">
+        <div>
+          <div class="desc" style="margin-bottom:6px;">Resíduos vs. Valores Ajustados</div>
+          <div class="chart-box"><canvas id="doe-resid-fitted-chart"></canvas></div>
+        </div>
+        <div>
+          <div class="desc" style="margin-bottom:6px;">Gráfico de Probabilidade Normal dos Resíduos</div>
+          <div class="chart-box"><canvas id="doe-resid-qq-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div id="doe-cube-wrap" style="display:none;">
+        <div class="desc" style="margin-bottom:6px;">Cube Plot — Médias da Resposta nos Vértices do Desenho 2³</div>
+        <div style="overflow-x:auto;"><table class="result-table" id="doe-cube-table"></table></div>
+      </div>
+
+      <div class="interp-box" id="doe-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-samplesize">
+      <h4>Tamanho de Amostra & Poder Estatístico</h4>
+      <div class="desc">Dimensiona a comparação Antes × Depois (ou o DOE) antes da coleta, ou calcula o poder retrospectivo de um teste já realizado.</div>
+      <div class="controls-row">
+        <div class="field">
+          <label>O que calcular</label>
+          <select id="ss-mode">
+            <option value="find_n">Tamanho de amostra necessário (informo o poder desejado)</option>
+            <option value="find_power">Poder estatístico (informo o N já coletado)</option>
+          </select>
+        </div>
+        <div class="field"><label>Diferença mínima a detectar</label><input type="number" id="ss-mean-diff" step="any" placeholder="Ex.: 5"></div>
+        <div class="field"><label>Desvio padrão estimado (σ)</label><input type="number" id="ss-sd" step="any" min="0" placeholder="Ex.: 8"></div>
+        <div class="field" id="ss-power-field"><label>Poder desejado (1-β)</label><input type="number" id="ss-power" step="any" min="0" max="0.999" value="0.8"></div>
+        <div class="field" id="ss-n-field" style="display:none;"><label>N por grupo já coletado</label><input type="number" id="ss-n" step="1" min="2" placeholder="Ex.: 15"></div>
+        <div class="field"><label>Nível de significância (α)</label><input type="number" id="ss-alpha" step="any" min="0" max="1" value="0.05"></div>
+        <button class="btn" onclick="runSampleSize()">Calcular</button>
+      </div>
+      <div class="metrics-grid" id="ss-metrics"></div>
+      <div class="interp-box" id="ss-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-montecarlo">
+      <h4>Simulação de Monte Carlo do Processo Melhorado</h4>
+      <div class="desc">Projeta o nível sigma/DPMO esperado após a melhoria, simulando o processo com um deslocamento de média e/ou redução de variabilidade em relação aos dados carregados.</div>
+      <div class="controls-row">
+        <div class="field"><label>Variável de Resposta</label><select id="mc-val" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>LIE — Limite Inferior (opcional)</label><input type="number" id="mc-lsl" step="any"></div>
+        <div class="field"><label>LSE — Limite Superior (opcional)</label><input type="number" id="mc-usl" step="any"></div>
+        <div class="field"><label>Deslocamento esperado na média</label><input type="number" id="mc-shift" step="any" value="0"></div>
+        <div class="field"><label>Fator de redução do desvio padrão</label><input type="number" id="mc-shrink" step="any" min="0.01" value="1"></div>
+        <div class="field"><label>Nº de simulações</label><input type="number" id="mc-nsim" step="1000" min="1000" value="100000"></div>
+        <button class="btn" onclick="runMonteCarlo()">Simular</button>
+      </div>
+      <div class="metrics-grid" id="mc-metrics"></div>
+      <div class="chart-box"><canvas id="mc-chart"></canvas></div>
+      <div class="interp-box" id="mc-interp"></div>
+    </section>
+
+    <section class="tool-panel" id="panel-rsm">
+      <h4>Otimização por Superfície de Resposta (Desejabilidade)</h4>
+      <div class="desc">Ajusta um modelo quadrático a dois fatores contínuos e busca no grid a combinação que maximiza ou minimiza a resposta — útil após o DOE para refinar o ponto ótimo de operação.</div>
+      <div class="controls-row">
+        <div class="field"><label>Fator X1</label><select id="rsm-a" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Fator X2</label><select id="rsm-b" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Resposta (Y)</label><select id="rsm-y" class="data-select" data-kind="numeric"></select></div>
+        <div class="field"><label>Objetivo</label>
+          <select id="rsm-goal">
+            <option value="max">Maximizar Y</option>
+            <option value="min">Minimizar Y</option>
+          </select>
+        </div>
+        <button class="btn" onclick="runRSM()">Otimizar</button>
+      </div>
+      <div class="metrics-grid" id="rsm-metrics"></div>
+      <div style="overflow-x:auto;"><table class="result-table" id="rsm-coef-table"></table></div>
+      <div class="interp-box" id="rsm-interp"></div>
+    </section>
+  </div>
+</main>
+
+<!-- Modal Relatório -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="report-title">Relatório Executivo Seis Sigma</h3>
+      <button class="modal-close" onclick="closeReportModal()">✕</button>
+    </div>
+    <div id="report-body">
+      <p>Gerando relatório consolidado do projeto...</p>
+    </div>
+    <div class="modal-actions" style="margin-top:20px;text-align:right;">
+      <button class="btn" onclick="exportReportPDF()">📄 Exportar PDF</button>
+    </div>
+  </div>
+</div>
+
+<footer>DMAIC Studio · Motor Estatístico Python via Pyodide (NumPy, Pandas, SciPy, Statsmodels)</footer>
+
+<script>
+let globalData = [];
+let comparisonAfterData = [];
+let comparisonAfterRawText = '';
+let comparisonAfterFileName = '';
+let columns = [];
+let numericCols = [];
+let categoricalCols = [];
+let rawText = '';
+let pyodide = null;
+window.__charts = {};
+
+async function initPyodideEngine() {
+  const banner = document.getElementById('status-banner');
+  const progressContainer = document.getElementById('progress-container');
+  const progressFill = document.getElementById('progress-fill');
+  
+  banner.innerText = "Carregando ambiente Python (Pyodide WebAssembly)...";
+  banner.className = "status-banner status-load";
+  if(progressContainer) progressContainer.style.display = 'block';
+
+  let progress = 10;
+  if(progressFill) progressFill.style.width = progress + '%';
+
+  pyodide = await loadPyodide({
+    messageCallback: (msg) => {
+      banner.innerText = `Pyodide: ${msg}`;
+      progress = Math.min(progress + 15, 50);
+      if(progressFill) progressFill.style.width = progress + '%';
+    }
+  });
+
+  banner.innerText = "Carregando bibliotecas científicas (NumPy, Pandas, SciPy, Statsmodels)...";
+  if(progressFill) progressFill.style.width = '60%';
+
+  await pyodide.loadPackage(["numpy", "pandas", "scipy", "statsmodels"], {
+    messageCallback: (msg) => {
+      banner.innerText = `Pacotes: ${msg}`;
+      progress = Math.min(progress + 15, 95);
+      if(progressFill) progressFill.style.width = progress + '%';
+    }
+  });
+
+  if(progressFill) progressFill.style.width = '100%';
+  banner.innerText = "Ambiente Python e pacotes estatísticos carregados com sucesso!";
+  banner.className = "status-banner status-ok";
+  setTimeout(() => {
+    banner.style.display = 'none';
+    if(progressContainer) progressContainer.style.display = 'none';
+  }, 3000);
+
+  await pyodide.runPythonAsync(`
+    import json
+    import numpy as np
+    import pandas as pd
+    from scipy import stats
+    import statsmodels.api as sm
+    import statsmodels.formula.api as smf
+    from statsmodels.stats.anova import anova_lm
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+    from statsmodels.stats.multicomp import pairwise_tukeyhsd
+    from statsmodels.stats.proportion import proportions_ztest
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+    from statsmodels.tsa.arima.model import ARIMA
+    from statsmodels.tsa.stattools import adfuller, kpss, acf, pacf
+    from statsmodels.stats.diagnostic import acorr_ljungbox, het_breuschpagan, breaks_cusumolsresid
+    from statsmodels.stats.stattools import durbin_watson
+    from statsmodels.tsa.seasonal import seasonal_decompose
+    from statsmodels.stats.power import TTestIndPower, TTestPower
+    from statsmodels.stats.weightstats import ttost_ind, ttost_paired
+
+    def py_before_after(data_before_json, data_after_json, val_col, paired, lsl_raw, usl_raw, tost_delta_raw):
+        before = pd.DataFrame(json.loads(data_before_json))
+        after = pd.DataFrame(json.loads(data_after_json))
+        if val_col not in before.columns:
+            return json.dumps({"error": f"A variável '{val_col}' não existe no arquivo original."})
+        if val_col not in after.columns:
+            return json.dumps({"error": f"A variável '{val_col}' não existe no arquivo DEPOIS."})
+
+        vals1 = pd.to_numeric(before[val_col], errors='coerce').dropna()
+        vals2 = pd.to_numeric(after[val_col], errors='coerce').dropna()
+        if len(vals1) == 0 or len(vals2) == 0:
+            return json.dumps({"error": "Não foram encontrados dados numéricos válidos da variável selecionada nos dois arquivos."})
+
+        a = np.asarray(vals1, dtype=float)
+        b = np.asarray(vals2, dtype=float)
+
+        # Teste pareado (mesmas unidades medidas ANTES/DEPOIS, na mesma ordem/linha)
+        paired_res = None
+        if paired:
+            n_pair = min(len(a), len(b))
+            if n_pair >= 3:
+                ap, bp = a[:n_pair], b[:n_pair]
+                dpaired = bp - ap
+                t_pair = stats.ttest_rel(bp, ap)
+                try:
+                    wres = stats.wilcoxon(bp, ap)
+                    wilc_stat, wilc_p = float(wres.statistic), float(wres.pvalue)
+                except Exception:
+                    wilc_stat = wilc_p = None
+                paired_res = {
+                    "n_pairs": n_pair,
+                    "mean_diff": float(np.mean(dpaired)),
+                    "sd_diff": float(np.std(dpaired, ddof=1)) if n_pair > 1 else 0.0,
+                    "t_stat": float(t_pair.statistic), "t_p": float(t_pair.pvalue),
+                    "wilcoxon_stat": wilc_stat, "wilcoxon_p": wilc_p
+                }
+                # IC 95% da diferença pareada
+                if n_pair > 1:
+                    se_p = paired_res["sd_diff"] / np.sqrt(n_pair)
+                    tcrit_p = float(stats.t.ppf(0.975, n_pair - 1))
+                    paired_res["ci95_low"] = float(paired_res["mean_diff"] - tcrit_p * se_p)
+                    paired_res["ci95_high"] = float(paired_res["mean_diff"] + tcrit_p * se_p)
+
+        n1, n2 = len(a), len(b)
+        mean1, mean2 = float(np.mean(a)), float(np.mean(b))
+        std1 = float(np.std(a, ddof=1)) if n1 > 1 else 0.0
+        std2 = float(np.std(b, ddof=1)) if n2 > 1 else 0.0
+        diff = mean2 - mean1
+        pct_change = (diff / mean1) * 100 if mean1 != 0 else 0
+
+        t_res = stats.ttest_ind(b, a, equal_var=False)
+        t_stat = float(t_res.statistic)
+        p_val = float(t_res.pvalue)
+
+        # IC 95% da diferença (DEPOIS - ANTES), compatível com Welch.
+        if n1 > 1 and n2 > 1:
+            se_diff = float(np.sqrt((std1 ** 2 / n1) + (std2 ** 2 / n2)))
+            if se_diff > 0:
+                df_welch = ((std1 ** 2 / n1 + std2 ** 2 / n2) ** 2) / (
+                    ((std1 ** 2 / n1) ** 2 / (n1 - 1)) + ((std2 ** 2 / n2) ** 2 / (n2 - 1))
+                )
+                t_crit = float(stats.t.ppf(0.975, df_welch))
+                ci_low = float(diff - t_crit * se_diff)
+                ci_high = float(diff + t_crit * se_diff)
+            else:
+                df_welch, ci_low, ci_high = float(n1 + n2 - 2), float(diff), float(diff)
+        else:
+            df_welch, ci_low, ci_high = None, None, None
+
+        # Hedges' g: tamanho de efeito padronizado com correção para amostras pequenas.
+        if n1 > 1 and n2 > 1 and (n1 + n2 - 2) > 0:
+            df_pooled = n1 + n2 - 2
+            pooled_var = (((n1 - 1) * std1 ** 2) + ((n2 - 1) * std2 ** 2)) / df_pooled
+            pooled_sd = float(np.sqrt(pooled_var))
+            if pooled_sd > 0:
+                cohen_d = float(diff / pooled_sd)
+                correction_j = float(1 - (3 / (4 * df_pooled - 1)))
+                hedges_g = float(cohen_d * correction_j)
+            else:
+                cohen_d = hedges_g = 0.0
+        else:
+            pooled_sd = cohen_d = hedges_g = None
+
+        median1, median2 = float(np.median(a)), float(np.median(b))
+        q1_1, q3_1 = np.percentile(a, [25, 75])
+        q1_2, q3_2 = np.percentile(b, [25, 75])
+        iqr1, iqr2 = float(q3_1 - q1_1), float(q3_2 - q1_2)
+        median_diff = median2 - median1
+
+        # Testes complementares; não substituem o Welch.
+        if n1 > 0 and n2 > 0:
+            mw_res = stats.mannwhitneyu(a, b, alternative='two-sided', method='auto')
+            mw_u, mw_p = float(mw_res.statistic), float(mw_res.pvalue)
+        else:
+            mw_u = mw_p = None
+
+        if n1 >= 3:
+            sh1 = stats.shapiro(a[:5000]) if n1 > 5000 else stats.shapiro(a)
+            sh1_stat, sh1_p = float(sh1.statistic), float(sh1.pvalue)
+        else:
+            sh1_stat = sh1_p = None
+        if n2 >= 3:
+            sh2 = stats.shapiro(b[:5000]) if n2 > 5000 else stats.shapiro(b)
+            sh2_stat, sh2_p = float(sh2.statistic), float(sh2.pvalue)
+        else:
+            sh2_stat = sh2_p = None
+
+        if n1 >= 2 and n2 >= 2:
+            lev = stats.levene(a, b, center='median')
+            lev_stat, lev_p = float(lev.statistic), float(lev.pvalue)
+        else:
+            lev_stat = lev_p = None
+
+        # Capacidade do processo (Cp/Cpk, Pp/Ppk) ANTES x DEPOIS, se LSL/USL informados
+        capability = None
+        try:
+            lsl = float(lsl_raw) if lsl_raw not in (None, '', 'null') else None
+            usl = float(usl_raw) if usl_raw not in (None, '', 'null') else None
+        except Exception:
+            lsl = usl = None
+        if lsl is not None or usl is not None:
+            def calc_cpk(vals, mean, sd):
+                if sd is None or sd <= 0:
+                    return {"cp": None, "cpk": None}
+                if lsl is not None and usl is not None:
+                    cp = float((usl - lsl) / (6 * sd))
+                else:
+                    cp = None
+                cpu = float((usl - mean) / (3 * sd)) if usl is not None else None
+                cpl = float((mean - lsl) / (3 * sd)) if lsl is not None else None
+                candidates = [v for v in [cpu, cpl] if v is not None]
+                cpk = float(min(candidates)) if candidates else None
+                return {"cp": cp, "cpk": cpk}
+            cap1 = calc_cpk(a, mean1, std1)
+            cap2 = calc_cpk(b, mean2, std2)
+            capability = {"lsl": lsl, "usl": usl, "before": cap1, "after": cap2}
+
+        # TOST — teste de equivalência (delta de relevância prática, se informado)
+        tost = None
+        try:
+            tost_delta = float(tost_delta_raw) if tost_delta_raw not in (None, '', 'null') else None
+        except Exception:
+            tost_delta = None
+        if tost_delta is not None and tost_delta > 0:
+            try:
+                if paired and paired_res is not None:
+                    n_pair = min(len(a), len(b))
+                    pval_tost, _, _ = ttost_paired(b[:n_pair], a[:n_pair], -tost_delta, tost_delta)
+                else:
+                    pval_tost, _, _ = ttost_ind(b, a, -tost_delta, tost_delta, usevar='unequal')
+                tost = {"delta": tost_delta, "p": float(pval_tost),
+                        "equivalent": bool(pval_tost < 0.05)}
+            except Exception:
+                tost = None
+
+        # Bootstrap (10.000 reamostragens) para IC 95% da diferença de medianas — robusto a não normalidade
+        try:
+            rng = np.random.default_rng(42)
+            n_boot = 10000
+            boot_diffs = np.empty(n_boot)
+            for i in range(n_boot):
+                sa = rng.choice(a, size=n1, replace=True)
+                sb = rng.choice(b, size=n2, replace=True)
+                boot_diffs[i] = np.median(sb) - np.median(sa)
+            boot_ci_low = float(np.percentile(boot_diffs, 2.5))
+            boot_ci_high = float(np.percentile(boot_diffs, 97.5))
+        except Exception:
+            boot_ci_low = boot_ci_high = None
+
+        return json.dumps({
+            "paired": paired_res,
+            "capability": capability,
+            "tost": tost,
+            "boot_median_ci_low": boot_ci_low, "boot_median_ci_high": boot_ci_high,
+            "g1": "ANTES", "mean1": mean1, "std1": std1, "n1": n1,
+            "g2": "DEPOIS", "mean2": mean2, "std2": std2, "n2": n2,
+            "pct_change": pct_change, "diff": float(diff),
+            "ci95_low": ci_low, "ci95_high": ci_high, "welch_df": df_welch,
+            "t": t_stat, "p": p_val,
+            "hedges_g": hedges_g, "cohen_d": cohen_d, "pooled_sd": pooled_sd,
+            "median1": median1, "median2": median2, "iqr1": iqr1, "iqr2": iqr2,
+            "median_diff": float(median_diff),
+            "mw_u": mw_u, "mw_p": mw_p,
+            "shapiro1_stat": sh1_stat, "shapiro1_p": sh1_p,
+            "shapiro2_stat": sh2_stat, "shapiro2_p": sh2_p,
+            "levene_stat": lev_stat, "levene_p": lev_p
+        })
+
+    def py_doe(data_json, col_a, col_b, col_c, col_d, col_y):
+        import itertools
+        df = pd.DataFrame(json.loads(data_json))
+        factor_cols = {"A": col_a, "B": col_b}
+        if col_c: factor_cols["C"] = col_c
+        if col_d: factor_cols["D"] = col_d
+        cols = list(factor_cols.values()) + [col_y]
+        sub = df[cols].apply(pd.to_numeric, errors='coerce').dropna().reset_index(drop=True)
+        n_factors = len(factor_cols)
+        min_needed = 2 ** n_factors
+        if len(sub) < max(4, min_needed):
+            return json.dumps({"error": f"Dados insuficientes para DOE ({n_factors} fatores exigem ao menos {min_needed} corridas válidas)."})
+
+        letters = list(factor_cols.keys())
+        # Gera todos os termos de interação (2 a n_factors vias) além dos efeitos principais
+        term_names = list(letters)
+        for r in range(2, n_factors + 1):
+            for combo in itertools.combinations(letters, r):
+                name = ''.join(combo)
+                term_names.append(name)
+                sub[name] = 1.0
+                for c in combo:
+                    sub[name] = sub[name] * sub[factor_cols[c]]
+
+        rename_map = {factor_cols[L]: L for L in letters}
+        model_df = sub.rename(columns=rename_map)
+        formula = f"Q('{col_y}') ~ " + " + ".join(term_names)
+        model = smf.ols(formula, data=model_df).fit()
+
+        # ANOVA (Tipo II) com teste F por termo
+        try:
+            anova_tbl = anova_lm(model, typ=2)
+            anova_rows = []
+            for idx, row in anova_tbl.iterrows():
+                anova_rows.append({
+                    "source": str(idx),
+                    "sum_sq": float(row["sum_sq"]) if pd.notna(row["sum_sq"]) else None,
+                    "df": float(row["df"]) if pd.notna(row["df"]) else None,
+                    "F": float(row["F"]) if pd.notna(row.get("F", np.nan)) else None,
+                    "p": float(row["PR(>F)"]) if pd.notna(row.get("PR(>F)", np.nan)) else None
+                })
+        except Exception as e:
+            anova_rows = []
+
+        conf_int = model.conf_int(alpha=0.05)
+        effects = []
+        for name in term_names:
+            coef = float(model.params[name])
+            effects.append({
+                "effect": name,
+                "value": coef,
+                "abs_value": abs(coef),
+                "p": float(model.pvalues[name]),
+                "ci_low": float(conf_int.loc[name, 0]),
+                "ci_high": float(conf_int.loc[name, 1])
+            })
+
+        # Half-normal: quantis teóricos half-normal vs. efeitos ordenados por magnitude
+        sorted_abs = sorted([e["abs_value"] for e in effects])
+        m = len(sorted_abs)
+        half_normal = []
+        for i, val in enumerate(sorted_abs):
+            prob = (i + 0.5) / m
+            z = float(stats.norm.ppf(0.5 + prob / 2))
+            half_normal.append({"theoretical": z, "abs_effect": val})
+
+        # Diagnóstico de resíduos
+        fitted = model.fittedvalues.tolist()
+        resid = model.resid.tolist()
+        resid_arr = np.asarray(resid)
+        n_r = len(resid_arr)
+        resid_sorted_idx = np.argsort(resid_arr)
+        resid_sorted = resid_arr[resid_sorted_idx]
+        normal_q = [float(stats.norm.ppf((i + 0.5) / n_r)) for i in range(n_r)]
+        try:
+            sh = stats.shapiro(resid_arr) if n_r >= 3 else None
+            resid_shapiro_p = float(sh.pvalue) if sh is not None else None
+        except Exception:
+            resid_shapiro_p = None
+
+        # Dados para gráficos de efeitos principais (média da resposta em -1 e +1 de cada fator)
+        main_effects_plot = {}
+        for L in letters:
+            grp = sub.groupby(factor_cols[L])[col_y].mean()
+            main_effects_plot[L] = {"levels": [float(x) for x in grp.index.tolist()], "means": [float(x) for x in grp.values.tolist()]}
+
+        # Interação AB (dois primeiros fatores) para o gráfico de interação
+        interaction_plot = None
+        if n_factors >= 2:
+            La, Lb = letters[0], letters[1]
+            piv = sub.pivot_table(index=factor_cols[La], columns=factor_cols[Lb], values=col_y, aggfunc='mean')
+            interaction_plot = {
+                "factor_a": La, "factor_b": Lb,
+                "levels_a": [float(x) for x in piv.index.tolist()],
+                "series": [{"level_b": float(cb), "means": [float(v) for v in piv[cb].tolist()]} for cb in piv.columns]
+            }
+
+        # Cube plot (somente para exatamente 3 fatores)
+        cube = None
+        if n_factors == 3:
+            La, Lb, Lc = letters
+            cube_pts = []
+            for sa, sb, sc in itertools.product([-1, 1], repeat=3):
+                mask = (np.sign(sub[factor_cols[La]]) == sa) & (np.sign(sub[factor_cols[Lb]]) == sb) & (np.sign(sub[factor_cols[Lc]]) == sc)
+                vals = sub.loc[mask, col_y]
+                cube_pts.append({"A": sa, "B": sb, "C": sc, "mean": float(vals.mean()) if len(vals) else None, "n": int(len(vals))})
+            cube = cube_pts
+
+        return json.dumps({
+            "n_factors": n_factors, "letters": letters, "factor_map": factor_cols,
+            "effects": effects, "r2": float(model.rsquared), "r2_adj": float(model.rsquared_adj),
+            "anova": anova_rows, "half_normal": half_normal,
+            "fitted": fitted, "resid": resid, "resid_sorted": resid_sorted.tolist(),
+            "normal_q": normal_q, "resid_shapiro_p": resid_shapiro_p,
+            "main_effects_plot": main_effects_plot, "interaction_plot": interaction_plot, "cube": cube
+        })
+
+    def py_sample_size(mode, mean_diff_raw, sd_raw, alpha_raw, power_raw, n_raw, ratio_raw):
+        alpha = float(alpha_raw) if alpha_raw not in (None, '') else 0.05
+        analysis = TTestIndPower()
+        result = {}
+        if mode == 'find_n':
+            mean_diff = float(mean_diff_raw); sd = float(sd_raw); power = float(power_raw)
+            if sd <= 0 or mean_diff == 0:
+                return json.dumps({"error": "Informe desvio padrão > 0 e uma diferença esperada diferente de zero."})
+            effect_size = abs(mean_diff) / sd
+            n = analysis.solve_power(effect_size=effect_size, alpha=alpha, power=power, ratio=1.0, alternative='two-sided')
+            result = {"mode": mode, "effect_size": float(effect_size), "n_per_group": float(np.ceil(n)), "alpha": alpha, "power": power}
+        else:
+            n = float(n_raw); mean_diff = float(mean_diff_raw); sd = float(sd_raw)
+            if sd <= 0 or n <= 1:
+                return json.dumps({"error": "Informe desvio padrão > 0 e tamanho de amostra > 1."})
+            effect_size = abs(mean_diff) / sd
+            power = analysis.solve_power(effect_size=effect_size, alpha=alpha, nobs1=n, ratio=1.0, alternative='two-sided')
+            result = {"mode": mode, "effect_size": float(effect_size), "power": float(power), "alpha": alpha, "n_per_group": n}
+        return json.dumps(result)
+
+    def py_montecarlo(data_json, val_col, lsl_raw, usl_raw, n_sim_raw, shift_raw, shrink_raw):
+        df = pd.DataFrame(json.loads(data_json))
+        vals = pd.to_numeric(df[val_col], errors='coerce').dropna()
+        if len(vals) < 3:
+            return json.dumps({"error": "Dados insuficientes para simular (mínimo 3 observações válidas)."})
+        arr = np.asarray(vals, dtype=float)
+        mean0, sd0 = float(np.mean(arr)), float(np.std(arr, ddof=1))
+        n_sim = int(n_sim_raw) if n_sim_raw else 100000
+        shift = float(shift_raw) if shift_raw not in (None, '') else 0.0
+        shrink = float(shrink_raw) if shrink_raw not in (None, '') else 1.0
+        mean_sim = mean0 + shift
+        sd_sim = max(sd0 * shrink, 1e-9)
+
+        try:
+            lsl = float(lsl_raw) if lsl_raw not in (None, '') else None
+        except Exception:
+            lsl = None
+        try:
+            usl = float(usl_raw) if usl_raw not in (None, '') else None
+        except Exception:
+            usl = None
+        if lsl is None and usl is None:
+            return json.dumps({"error": "Informe ao menos um limite de especificação (LSE e/ou LIE)."})
+
+        rng = np.random.default_rng(7)
+        sim = rng.normal(mean_sim, sd_sim, size=n_sim)
+        n_out = 0
+        if lsl is not None: n_out += int(np.sum(sim < lsl))
+        if usl is not None: n_out += int(np.sum(sim > usl))
+        ppm = (n_out / n_sim) * 1e6
+        dpmo = ppm
+        p_defect = max(dpmo / 1e6, 1e-10)
+        sigma_level = float(stats.norm.ppf(1 - p_defect) + 1.5)
+
+        cp = float((usl - lsl) / (6 * sd_sim)) if (lsl is not None and usl is not None) else None
+        cpu = float((usl - mean_sim) / (3 * sd_sim)) if usl is not None else None
+        cpl = float((mean_sim - lsl) / (3 * sd_sim)) if lsl is not None else None
+        cpk_candidates = [v for v in [cpu, cpl] if v is not None]
+        cpk = float(min(cpk_candidates)) if cpk_candidates else None
+
+        hist, edges = np.histogram(sim, bins=40)
+        return json.dumps({
+            "mean_baseline": mean0, "sd_baseline": sd0,
+            "mean_sim": mean_sim, "sd_sim": sd_sim,
+            "n_sim": n_sim, "ppm": float(ppm), "sigma_level": sigma_level,
+            "cp": cp, "cpk": cpk, "lsl": lsl, "usl": usl,
+            "hist_counts": hist.tolist(), "hist_edges": edges.tolist()
+        })
+
+    def py_rsm(data_json, col_a, col_b, col_y, goal):
+        df = pd.DataFrame(json.loads(data_json))
+        sub = df[[col_a, col_b, col_y]].apply(pd.to_numeric, errors='coerce').dropna()
+        if len(sub) < 6:
+            return json.dumps({"error": "Dados insuficientes para ajustar um modelo quadrático (mínimo 6 pontos)."})
+        a = sub[col_a].rename('A'); b = sub[col_b].rename('B'); y = sub[col_y]
+        model_df = pd.DataFrame({'A': a, 'B': b, 'Y': y})
+        model_df['A2'] = model_df['A'] ** 2
+        model_df['B2'] = model_df['B'] ** 2
+        model_df['AB'] = model_df['A'] * model_df['B']
+        model = smf.ols('Y ~ A + B + A2 + B2 + AB', data=model_df).fit()
+
+        a_min, a_max = float(model_df['A'].min()), float(model_df['A'].max())
+        b_min, b_max = float(model_df['B'].min()), float(model_df['B'].max())
+        grid_n = 60
+        a_grid = np.linspace(a_min, a_max, grid_n)
+        b_grid = np.linspace(b_min, b_max, grid_n)
+        best = None
+        surface = []
+        for av in a_grid:
+            row_vals = []
+            for bv in b_grid:
+                pred = model.predict(pd.DataFrame({'A': [av], 'B': [bv], 'A2': [av**2], 'B2': [bv**2], 'AB': [av*bv]}))[0]
+                row_vals.append(float(pred))
+                if best is None:
+                    best = (av, bv, pred)
+                else:
+                    if (goal == 'max' and pred > best[2]) or (goal == 'min' and pred < best[2]):
+                        best = (av, bv, pred)
+            surface.append(row_vals)
+
+        return json.dumps({
+            "r2": float(model.rsquared), "r2_adj": float(model.rsquared_adj),
+            "coef": {k: float(v) for k, v in model.params.items()},
+            "pvalues": {k: float(v) for k, v in model.pvalues.items()},
+            "best_a": float(best[0]), "best_b": float(best[1]), "best_y": float(best[2]),
+            "a_grid": a_grid.tolist(), "b_grid": b_grid.tolist(), "surface": surface,
+            "col_a": col_a, "col_b": col_b, "col_y": col_y
+        })
+
+  `);
+
+  setupDragAndDrop();
+}
+
+function setupDragAndDrop() {
+  const zone = document.getElementById('upload-zone');
+  const fileInput = document.getElementById('csvFile');
+
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('drag');
+    if(e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+      handleFileSelect({ target: fileInput });
+    }
+  });
+  fileInput.addEventListener('change', handleFileSelect);
+  const sampleBtn = document.getElementById('btn-sample');
+  if (sampleBtn) sampleBtn.addEventListener('click', () => { rawText = sampleCSV(); parseCSV(rawText); });
+  const decSelect = document.getElementById('decimal-mode');
+  if (decSelect) decSelect.addEventListener('change', () => {
+    if (rawText) parseCSV(rawText);
+    if (comparisonAfterRawText) {
+      const reparsed = parseComparisonCSV(comparisonAfterRawText);
+      if (reparsed) comparisonAfterData = reparsed;
+    }
+  });
+}
+
+function sampleCSV() {
+  let s = 12345;
+  const rnd = () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
+  const lines = ['Lote;DataHora;Turno;Maquina;Espessura_mm;Peso_g;Defeito;Resultado'];
+  const defs = ['Risco', 'Trinca', 'Rebarba', 'Furo', 'Outros'];
+  const t0 = new Date(Date.UTC(2026, 0, 5, 6, 0, 0));
+  for (let i = 0; i < 150; i++) {
+    const t = new Date(t0.getTime() + i * 3600000 * 2);
+    const turno = ['A', 'B', 'C'][i % 3], maq = ['M1', 'M2'][Math.floor(rnd() * 2)];
+    const esp = 10 + 0.02 * (maq === 'M2' ? 1 : 0) * 5 + gauss() * 0.11 + (turno === 'C' ? 0.05 : 0);
+    const peso = 250 + gauss() * 3.2;
+    const bad = rnd() < 0.08;
+    const iso = t.toISOString().slice(0, 19).replace('T', ' ');
+    lines.push([i + 1, iso, turno, maq, esp.toFixed(3).replace('.', ','), peso.toFixed(1).replace('.', ','), bad ? defs[Math.floor(Math.pow(rnd(), 2) * defs.length)] : '', bad ? 'NOK' : 'OK'].join(';'));
+  }
+  return lines.join('\n');
+}
+
+function isExcelFile(file) {
+  return /\.(xlsx|xls)$/i.test(file.name);
+}
+
+function readUploadedFile(file, onText, onError) {
+  const reader = new FileReader();
+  if (isExcelFile(file)) {
+    reader.onload = function(evt) {
+      try {
+        const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array', cellDates: false });
+        const sheetName = wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const csvText = XLSX.utils.sheet_to_csv(ws, { FS: ';', blankrows: false });
+        onText(csvText, sheetName, wb.SheetNames.length);
+      } catch (err) {
+        if (onError) onError(err); else alert('Não foi possível ler o arquivo Excel: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload = function(evt) { onText(evt.target.result, null, 1); };
+    reader.readAsText(file);
+  }
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  readUploadedFile(file, (text, sheetName, sheetCount) => {
+    rawText = text;
+    parseCSV(rawText);
+    if (sheetCount > 1) {
+      const banner = document.getElementById('status-banner');
+      if (banner) banner.innerText += ` (Excel com ${sheetCount} planilhas — usada apenas "${sheetName}"; para usar outra, salve-a separadamente.)`;
+    }
+  });
+}
+
+function guessDecimal(body, delimiter) {
+  let comma = 0, dot = 0, commaWeak = 0, dotWeak = 0;
+  const limit = Math.min(body.length, 3000);
+  for (let r = 0; r < limit; r++) {
+    const row = body[r];
+    for (let c = 0; c < row.length; c++) {
+      const s = String(row[c] === undefined ? '' : row[c]).trim().replace(/^['"]|['"]$/g, '').trim().replace(/\s/g, '');
+      if (!s || !/\d/.test(s)) continue;
+      if (/^[-+]?\d{1,3}(\.\d{3})+,\d+$/.test(s)) comma += 3;
+      else if (/^[-+]?\d{1,3}(,\d{3})+\.\d+$/.test(s)) dot += 3;
+      else if (/^[-+]?\d{1,3}(\.\d{3}){2,}$/.test(s)) comma += 2;
+      else if (/^[-+]?\d{1,3}(,\d{3}){2,}$/.test(s)) dot += 2;
+      else if (/^[-+]?\d*,\d+$/.test(s)) { if (s.split(',')[1].length !== 3) comma += 1; else commaWeak += 1; }
+      else if (/^[-+]?\d*\.\d+$/.test(s)) { if (s.split('.')[1].length !== 3) dot += 1; else dotWeak += 1; }
+    }
+  }
+  if (comma > dot) return 'comma';
+  if (dot > comma) return 'dot';
+  if (commaWeak > dotWeak) return 'comma';
+  if (dotWeak > commaWeak) return 'dot';
+  return delimiter === ';' ? 'comma' : 'dot';
+}
+const NUM_RE_STRICT = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+function parseNumberDec(s, dec) {
+  let t = s.replace(/\s/g, '');
+  if (dec === 'comma') {
+    if (/^[-+]?\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) t = t.replace(/\./g, '');
+    t = t.replace(',', '.');
+  } else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) {
+    t = t.replace(/,/g, '');
+  }
+  if (!NUM_RE_STRICT.test(t)) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseCSV(text) {
+  if (typeof text !== 'string' || !text.trim()) return alert('O arquivo CSV parece estar vazio ou inválido.');
+
+  function detectDelimiter(lines) {
+    const candidates = [',', ';', '\t'];
+    let best = ';', bestCount = -1;
+    for (const d of candidates) {
+      const counts = lines.map(line => {
+        let count = 0, quoted = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (quoted && line[i + 1] === '"') i++;
+            else quoted = !quoted;
+          } else if (!quoted && ch === d) count++;
+        }
+        return count;
+      });
+      const first = counts[0];
+      const consistent = counts.every(c => c === first);
+      if (consistent && first > bestCount) { bestCount = first; best = d; }
+    }
+    return best;
+  }
+
+  function parseCSVRows(src, delimiter) {
+    const rows = [];
+    let row = [], field = '', quoted = false;
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === '"') {
+        if (quoted && src[i + 1] === '"') { field += '"'; i++; }
+        else quoted = !quoted;
+      } else if (ch === delimiter && !quoted) {
+        row.push(field); field = '';
+      } else if ((ch === '\n' || ch === '\r') && !quoted) {
+        if (ch === '\r' && src[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.some(v => v.trim() !== '')) rows.push(row);
+        row = [];
+      } else field += ch;
+    }
+    row.push(field);
+    if (row.some(v => v.trim() !== '')) rows.push(row);
+    return rows;
+  }
+
+  const sampleLines = text.split(/\r\n|\n|\r/).filter(l => l.trim() !== '').slice(0, 8);
+  const firstLine = sampleLines[0] || '';
+  const delimiter = detectDelimiter(sampleLines.length ? sampleLines : ['']);
+  const rows = parseCSVRows(text.replace(/^\uFEFF/, ''), delimiter);
+  if (rows.length < 2) return alert('O arquivo CSV parece estar vazio ou inválido.');
+
+  columns = rows[0].map((c, i) => {
+    let name = String(c).trim();
+    if (!name) name = `Coluna ${i + 1}`;
+    return name;
+  });
+  const seen = {};
+  columns = columns.map((c, i) => {
+    const key = c;
+    seen[key] = (seen[key] || 0) + 1;
+    return seen[key] === 1 ? c : `${c}_${seen[key]}`;
+  });
+
+  const body = rows.slice(1);
+  const decSelect = document.getElementById('decimal-mode');
+  const mode = decSelect ? decSelect.value : 'auto';
+  const detectedDecimal = mode === 'auto' ? guessDecimal(body, delimiter) : mode;
+
+  globalData = body.map(vals => {
+    const row = {};
+    columns.forEach((col, idx) => {
+      let val = vals[idx] !== undefined ? String(vals[idx]).trim() : '';
+      const normalized = val.replace(/^['"]|['"]$/g, '').trim();
+      if (normalized === '') { row[col] = null; return; }
+      const num = parseNumberDec(normalized, detectedDecimal);
+      row[col] = num !== null ? num : normalized;
+    });
+    return row;
+  });
+
+  detectColumnTypes();
+  renderPreviewTable();
+  populateSelectors();
+
+  const zone = document.getElementById('upload-zone');
+  if (zone) zone.classList.add('loaded');
+  const banner = document.getElementById('status-banner');
+  if (banner) {
+    const modeTxt = mode === 'auto' ? `automático (detectado: ${detectedDecimal === 'comma' ? 'vírgula' : 'ponto'})` : (detectedDecimal === 'comma' ? 'vírgula (forçado)' : 'ponto (forçado)');
+    banner.innerText = `Arquivo carregado com sucesso! ${globalData.length} linhas e ${columns.length} colunas processadas. Separador decimal: ${modeTxt}.`;
+    banner.className = 'status-banner status-ok';
+    banner.style.display = 'block';
+  }
+}
+function detectColumnTypes() {
+  numericCols = [];
+  categoricalCols = [];
+  columns.forEach(col => {
+    let numCount = globalData.filter(r => typeof r[col] === 'number').length;
+    if(numCount / globalData.length > 0.6) {
+      numericCols.push(col);
+    } else {
+      categoricalCols.push(col);
+    }
+  });
+}
+
+function renderPreviewTable() {
+  const container = document.getElementById('data-preview');
+  let html = '<table class="preview-table"><thead><tr>';
+  columns.forEach(c => html += `<th>${escapeHtml(String(c))}</th>`);
+  html += '</tr></thead><tbody>';
+  
+  const previewRows = globalData.slice(0, 5);
+  previewRows.forEach(r => {
+    html += '<tr>';
+    columns.forEach(c => html += `<td>${escapeHtml(String(r[c] !== undefined && r[c] !== null ? r[c] : ''))}</td>`);
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function populateSelectors() {
+  const selects = document.querySelectorAll('.data-select');
+  selects.forEach(sel => {
+    const kind = sel.getAttribute('data-kind');
+    sel.innerHTML = '';
+    let targetCols = columns;
+    if(kind === 'numeric') targetCols = numericCols;
+    else if(kind === 'categorical') targetCols = categoricalCols;
+
+    if(sel.getAttribute('data-optional') === 'true') {
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = 'Nenhum';
+      sel.appendChild(emptyOpt);
+    }
+
+    targetCols.forEach(c => {
+      let opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  });
+
+  const multiContainer = document.getElementById('reg-m-x-container');
+  if(multiContainer) {
+    multiContainer.innerHTML = '';
+    numericCols.forEach(c => {
+      let lbl = document.createElement('label');
+      lbl.className = 'tool-item';
+      lbl.innerHTML = `<input type="checkbox" class="reg-m-x-check" value="${c}"><span>${c}</span>`;
+      multiContainer.appendChild(lbl);
+    });
+  }
+}
+
+// Navegação de Abas & Checklist
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('main.tab-content').forEach(m => m.classList.remove('active'));
+    btn.classList.add('active');
+    const tabId = 'tab-' + btn.getAttribute('data-tab');
+    document.getElementById(tabId).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.tool-check').forEach(chk => {
+  chk.addEventListener('change', (e) => {
+    const targetId = e.target.getAttribute('data-target');
+    const panel = document.getElementById(targetId);
+    if(panel) {
+      if(e.target.checked) panel.classList.add('open');
+      else panel.classList.remove('open');
+    }
+  });
+});
+
+// Funções Improve
+function parseComparisonCSV(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+
+  function detectDelimiter(lines) {
+    const candidates = [',', ';', '\t'];
+    let best = ';', bestCount = -1;
+    for (const d of candidates) {
+      const counts = lines.map(line => {
+        let count = 0, quoted = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (quoted && line[i + 1] === '"') i++;
+            else quoted = !quoted;
+          } else if (!quoted && ch === d) count++;
+        }
+        return count;
+      });
+      const first = counts[0];
+      const consistent = counts.every(c => c === first);
+      if (consistent && first > bestCount) { bestCount = first; best = d; }
+    }
+    return best;
+  }
+
+  function parseRows(src, delimiter) {
+    const rows = [];
+    let row = [], field = '', quoted = false;
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === '"') {
+        if (quoted && src[i + 1] === '"') { field += '"'; i++; }
+        else quoted = !quoted;
+      } else if (ch === delimiter && !quoted) {
+        row.push(field); field = '';
+      } else if ((ch === '\n' || ch === '\r') && !quoted) {
+        if (ch === '\r' && src[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.some(v => v.trim() !== '')) rows.push(row);
+        row = [];
+      } else field += ch;
+    }
+    row.push(field);
+    if (row.some(v => v.trim() !== '')) rows.push(row);
+    return rows;
+  }
+
+  const sampleLines = text.split(/\r\n|\n|\r/).filter(l => l.trim() !== '').slice(0, 8);
+  const firstLine = sampleLines[0] || '';
+  const delimiter = detectDelimiter(sampleLines.length ? sampleLines : ['']);
+  const rows = parseRows(text.replace(/^\uFEFF/, ''), delimiter);
+  if (rows.length < 2) return null;
+
+  let cols = rows[0].map((c, i) => {
+    let name = String(c).trim();
+    return name || `Coluna ${i + 1}`;
+  });
+  const seen = {};
+  cols = cols.map(c => {
+    seen[c] = (seen[c] || 0) + 1;
+    return seen[c] === 1 ? c : `${c}_${seen[c]}`;
+  });
+
+  const body = rows.slice(1);
+  const mode = (document.getElementById('decimal-mode') || {}).value || 'auto';
+  const detectedDecimal = mode === 'auto' ? guessDecimal(body, delimiter) : mode;
+
+  return body.map(vals => {
+    const row = {};
+    cols.forEach((col, idx) => {
+      const raw = vals[idx] !== undefined ? String(vals[idx]).trim() : '';
+      const normalized = raw.replace(/^['"]|['"]$/g, '').trim();
+      if (normalized === '') { row[col] = null; return; }
+      const num = parseNumberDec(normalized, detectedDecimal);
+      row[col] = num !== null ? num : normalized;
+    });
+    return row;
+  });
+}
+
+function handleBeforeAfterFileSelect(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  readUploadedFile(file, (text, sheetName, sheetCount) => {
+    comparisonAfterRawText = text;
+    const parsed = parseComparisonCSV(comparisonAfterRawText);
+    if(!parsed) {
+      comparisonAfterData = [];
+      comparisonAfterFileName = '';
+      comparisonAfterRawText = '';
+      document.getElementById('ba-file-status').innerHTML = '<strong>ANTES:</strong> arquivo original &nbsp;|&nbsp; <strong>DEPOIS:</strong> arquivo inválido ou vazio.';
+      return alert('O arquivo para comparação parece estar vazio ou inválido.');
+    }
+    comparisonAfterData = parsed;
+    comparisonAfterFileName = file.name;
+    const sheetNote = sheetCount > 1 ? ` (planilha "${sheetName}" de ${sheetCount})` : '';
+    document.getElementById('ba-file-status').innerHTML =
+      `<strong>ANTES:</strong> arquivo original (${globalData.length} linhas) &nbsp;|&nbsp; <strong>DEPOIS:</strong> ${escapeHtml(file.name)}${sheetNote} (${parsed.length} linhas)`;
+  });
+}
+
+async function runBeforeAfter() {
+  const val = document.getElementById('ba-val').value;
+  if(!val) return alert('Selecione a variável de resposta.');
+  if(!globalData.length) return alert('Carregue primeiro o arquivo original.');
+  if(!comparisonAfterData.length) return alert('Adicione o arquivo para comparação (DEPOIS).');
+
+  const paired = document.getElementById('ba-paired').checked;
+  const lsl = document.getElementById('ba-lsl').value;
+  const usl = document.getElementById('ba-usl').value;
+  const tostDelta = document.getElementById('ba-tost-delta').value;
+
+  const resStr = await pyodide.runPythonAsync(
+    `py_before_after(${JSON.stringify(JSON.stringify(globalData))}, ${JSON.stringify(JSON.stringify(comparisonAfterData))}, ${JSON.stringify(val)}, ${paired ? 'True' : 'False'}, ${JSON.stringify(lsl)}, ${JSON.stringify(usl)}, ${JSON.stringify(tostDelta)})`
+  );
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  const fmt = (v, d=4) => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : Number(v).toFixed(d);
+  const fmtP = v => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : (Number(v) < 0.001 ? '< 0.001' : Number(v).toFixed(4));
+  const shapiro1Text = res.shapiro1_p == null ? 'N/D' : (res.shapiro1_p < 0.05 ? 'Evidência de desvio da normalidade' : 'Sem evidência de desvio da normalidade');
+  const shapiro2Text = res.shapiro2_p == null ? 'N/D' : (res.shapiro2_p < 0.05 ? 'Evidência de desvio da normalidade' : 'Sem evidência de desvio da normalidade');
+  const leveneText = res.levene_p == null ? 'N/D' : (res.levene_p < 0.05 ? 'Evidência de variâncias diferentes' : 'Sem evidência de variâncias diferentes');
+
+  // Recomendação automática de teste com base em normalidade e pareamento
+  const nonNormal = (res.shapiro1_p !== null && res.shapiro1_p < 0.05) || (res.shapiro2_p !== null && res.shapiro2_p < 0.05);
+  let recommended;
+  if(paired) recommended = nonNormal ? 'Wilcoxon (postos sinalizados) — dados pareados e não normais' : 't pareado — dados pareados e aproximadamente normais';
+  else recommended = nonNormal ? 'Mann-Whitney — amostras independentes e não normais' : 't de Welch — amostras independentes e aproximadamente normais';
+  document.getElementById('ba-recommend').innerHTML = `<strong>Teste recomendado para este cenário:</strong> ${recommended}. (Todos os testes abaixo são calculados e exibidos para referência cruzada.)`;
+
+  // Métricas de pareamento
+  const pairedBox = document.getElementById('ba-paired-metrics');
+  if(res.paired) {
+    const p = res.paired;
+    pairedBox.innerHTML = `
+      <div class="metric-card" style="border-left:4px solid var(--improve);"><div class="metric-value">${p.n_pairs}</div><div class="metric-label">Nº de pares</div></div>
+      <div class="metric-card"><div class="metric-value">${fmt(p.mean_diff)}</div><div class="metric-label">Diferença média pareada</div></div>
+      <div class="metric-card"><div class="metric-value">${p.ci95_low == null ? 'N/D' : `[${fmt(p.ci95_low)} ; ${fmt(p.ci95_high)}]`}</div><div class="metric-label">IC 95% (pareado)</div></div>
+      <div class="metric-card"><div class="metric-value">${fmtP(p.t_p)}</div><div class="metric-label">P-valor — t pareado</div></div>
+      <div class="metric-card"><div class="metric-value">${fmtP(p.wilcoxon_p)}</div><div class="metric-label">P-valor — Wilcoxon</div></div>
+    `;
+  } else { pairedBox.innerHTML = ''; }
+
+  // Capacidade do processo (Cp/Cpk) + TOST + bootstrap
+  const capBox = document.getElementById('ba-capability-metrics');
+  let capHtml = '';
+  if(res.capability) {
+    const c = res.capability;
+    capHtml += `
+      <div class="metric-card"><div class="metric-value">${fmt(c.before.cp,3)}</div><div class="metric-label">Cp — ANTES</div></div>
+      <div class="metric-card"><div class="metric-value">${fmt(c.before.cpk,3)}</div><div class="metric-label">Cpk — ANTES</div></div>
+      <div class="metric-card" style="border-left:4px solid #1E8F5F;"><div class="metric-value">${fmt(c.after.cp,3)}</div><div class="metric-label">Cp — DEPOIS</div></div>
+      <div class="metric-card" style="border-left:4px solid #1E8F5F;"><div class="metric-value">${fmt(c.after.cpk,3)}</div><div class="metric-label">Cpk — DEPOIS</div></div>
+    `;
+  }
+  if(res.tost) {
+    capHtml += `
+      <div class="metric-card"><div class="metric-value">${fmtP(res.tost.p)}</div><div class="metric-label">P-valor TOST (±${fmt(res.tost.delta,2)})</div></div>
+      <div class="metric-card"><div class="metric-value">${res.tost.equivalent ? 'Sim' : 'Não'}</div><div class="metric-label">Equivalência estatística (α=0,05)</div></div>
+    `;
+  }
+  if(res.boot_median_ci_low != null) {
+    capHtml += `<div class="metric-card"><div class="metric-value">[${fmt(res.boot_median_ci_low)} ; ${fmt(res.boot_median_ci_high)}]</div><div class="metric-label">IC 95% Bootstrap — diferença de medianas</div></div>`;
+  }
+  capBox.innerHTML = capHtml;
+
+  document.getElementById('ba-metrics').innerHTML = `
+    <div class="metric-card" style="border-left:4px solid #C77A1F;"><div class="metric-value">${fmt(res.mean1)}</div><div class="metric-label">Média — ANTES</div></div>
+    <div class="metric-card" style="border-left:4px solid #1E8F5F;"><div class="metric-value">${fmt(res.mean2)}</div><div class="metric-label">Média — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.diff)}</div><div class="metric-label">Diferença Absoluta (DEPOIS − ANTES)</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.pct_change,2)}%</div><div class="metric-label">Variação % (Depois vs. Antes)</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.p)}</div><div class="metric-label">P-valor — t de Welch</div></div>
+    <div class="metric-card"><div class="metric-value">${res.ci95_low == null ? 'N/D' : `[${fmt(res.ci95_low)} ; ${fmt(res.ci95_high)}]`}</div><div class="metric-label">IC 95% da Diferença</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.hedges_g)}</div><div class="metric-label">Hedges' g — Tamanho do efeito</div></div>
+    <div class="metric-card"><div class="metric-value">${res.n1}</div><div class="metric-label">N — ANTES</div></div>
+    <div class="metric-card"><div class="metric-value">${res.n2}</div><div class="metric-label">N — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.std1)}</div><div class="metric-label">Desvio Padrão — ANTES</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.std2)}</div><div class="metric-label">Desvio Padrão — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.median1)}</div><div class="metric-label">Mediana — ANTES</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.median2)}</div><div class="metric-label">Mediana — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.iqr1)}</div><div class="metric-label">IQR — ANTES</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.iqr2)}</div><div class="metric-label">IQR — DEPOIS</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.median_diff)}</div><div class="metric-label">Diferença de Medianas</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.mw_u)}</div><div class="metric-label">U — Mann-Whitney</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.mw_p)}</div><div class="metric-label">P-valor — Mann-Whitney</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.shapiro1_p)}</div><div class="metric-label">Shapiro-Wilk p — ANTES</div><div class="metric-label" style="margin-top:4px;">${shapiro1Text}</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.shapiro2_p)}</div><div class="metric-label">Shapiro-Wilk p — DEPOIS</div><div class="metric-label" style="margin-top:4px;">${shapiro2Text}</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.levene_p)}</div><div class="metric-label">Levene p — variâncias</div><div class="metric-label" style="margin-top:4px;">${leveneText}</div></div>
+  `;
+
+  const ctx = document.getElementById('ba-chart').getContext('2d');
+  if(window.__charts['ba']) window.__charts['ba'].destroy();
+  window.__charts['ba'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['ANTES', 'DEPOIS'],
+      datasets: [{ label: 'Média', data: [res.mean1, res.mean2], backgroundColor: ['#C77A1F', '#1E8F5F'] }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true } }
+    }
+  });
+
+  const thresholdRaw = document.getElementById('ba-practical-threshold').value;
+  const threshold = thresholdRaw === '' ? null : Number(thresholdRaw);
+  const direction = document.getElementById('ba-practical-direction').value;
+  let practicalText = 'Nenhum limite de relevância prática foi informado.';
+  if(threshold !== null && Number.isFinite(threshold) && threshold >= 0) {
+    const absDiff = Math.abs(res.diff);
+    const reachesThreshold = absDiff >= threshold;
+    let directionText = 'sem direção definida';
+    let directionConsistent = true;
+    if(direction === 'higher') { directionText = 'maior é desejado'; directionConsistent = res.diff > 0; }
+    if(direction === 'lower') { directionText = 'menor é desejado'; directionConsistent = res.diff < 0; }
+    practicalText = `Mudança mínima informada: ${fmt(threshold)}; diferença observada: ${fmt(res.diff)}. ${reachesThreshold ? 'A magnitude observada atinge ou supera' : 'A magnitude observada não atinge'} esse limite. Direção configurada: ${directionText}${direction ? (directionConsistent ? '; a direção observada é compatível com a direção informada.' : '; a direção observada é oposta à direção informada.') : '.'}`;
+  }
+  const statText = res.p < 0.05 ? 'O teste t de Welch indica diferença estatisticamente significativa entre as médias (p < 0,05).' : 'O teste t de Welch não indica diferença estatisticamente significativa entre as médias (p ≥ 0,05).';
+  const effectAbs = res.hedges_g == null ? null : Math.abs(res.hedges_g);
+  const effectText = effectAbs == null ? 'Tamanho do efeito não disponível.' : `Hedges' g = ${fmt(res.hedges_g)}, quantificando a magnitude padronizada da diferença; isso não determina se a mudança é benéfica.`;
+  const robustText = res.mw_p < 0.05 ? 'O Mann-Whitney também encontrou diferença estatisticamente significativa.' : 'O Mann-Whitney não encontrou diferença estatisticamente significativa.';
+  let extraText = '';
+  if(res.paired) {
+    extraText += ` Considerando o pareamento informado, a diferença média pareada foi ${fmt(res.paired.mean_diff)} (t pareado p=${fmtP(res.paired.t_p)}; Wilcoxon p=${fmtP(res.paired.wilcoxon_p)}).`;
+  }
+  if(res.capability) {
+    const c = res.capability;
+    extraText += ` Capacidade do processo: Cpk ANTES = ${fmt(c.before.cpk,3)}, Cpk DEPOIS = ${fmt(c.after.cpk,3)}${c.before.cpk != null && c.after.cpk != null ? (c.after.cpk > c.before.cpk ? ' (melhora de capacidade).' : ' (sem melhora de capacidade).') : '.'}`;
+  }
+  if(res.tost) {
+    extraText += ` Teste de equivalência (TOST, delta=±${fmt(res.tost.delta,2)}): p=${fmtP(res.tost.p)} — ${res.tost.equivalent ? 'as médias podem ser consideradas estatisticamente equivalentes dentro do intervalo definido.' : 'não há evidência de equivalência estatística dentro do intervalo definido.'}`;
+  }
+  if(res.boot_median_ci_low != null) {
+    extraText += ` O IC 95% bootstrap (10.000 reamostragens, robusto a não normalidade) para a diferença de medianas é [${fmt(res.boot_median_ci_low)} ; ${fmt(res.boot_median_ci_high)}].`;
+  }
+  extraText += ` Teste recomendado para este cenário: ${recommended}.`;
+  document.getElementById('ba-interp').innerHTML =
+    `<strong>Interpretação:</strong> Para ${escapeHtml(val)}, a diferença observada foi de ${fmt(res.diff)} (${fmt(res.pct_change,2)}%). O IC 95% da diferença é ${res.ci95_low == null ? 'N/D' : `[${fmt(res.ci95_low)} ; ${fmt(res.ci95_high)}]`}. ${statText} ${robustText} ${effectText} ${shapiro1Text} (ANTES) e ${shapiro2Text} (DEPOIS). ${leveneText}. ${practicalText}${extraText} A direção desejável deve ser definida pelo contexto do indicador; os resultados estatísticos, isoladamente, não classificam a mudança como melhoria ou piora.`;
+
+  // Carta de Controle I — usa as observações individuais dos dois arquivos.
+  // Os limites são estimados somente com o período ANTES, preservando o
+  // segundo arquivo exclusivamente para a comparação.
+  const beforeValues = globalData
+    .map(row => Number(row[val]))
+    .filter(v => Number.isFinite(v));
+
+  const afterValues = comparisonAfterData
+    .map(row => Number(row[val]))
+    .filter(v => Number.isFinite(v));
+
+  if(!beforeValues.length || !afterValues.length) return;
+
+  const beforeMean = beforeValues.reduce((sum, v) => sum + v, 0) / beforeValues.length;
+
+  let sigmaBefore = 0;
+  if(beforeValues.length > 1) {
+    let mrSum = 0;
+    for(let i = 1; i < beforeValues.length; i++) {
+      mrSum += Math.abs(beforeValues[i] - beforeValues[i - 1]);
+    }
+    const meanMR = mrSum / (beforeValues.length - 1);
+    sigmaBefore = meanMR / 1.128;
+  }
+
+  const ucl = beforeMean + 3 * sigmaBefore;
+  const lcl = beforeMean - 3 * sigmaBefore;
+  const allValues = beforeValues.concat(afterValues);
+  const labels = allValues.map((_, i) => String(i + 1));
+  const beforeCount = beforeValues.length;
+  const afterMean = afterValues.reduce((sum, v) => sum + v, 0) / afterValues.length;
+
+  const beforeData = beforeValues.concat(Array(afterValues.length).fill(null));
+  const afterData = Array(beforeValues.length).fill(null).concat(afterValues);
+  const fullCL = Array(allValues.length).fill(beforeMean);
+  const fullUCL = Array(allValues.length).fill(ucl);
+  const fullLCL = Array(allValues.length).fill(lcl);
+  const afterMeanData = Array(beforeValues.length).fill(null).concat(Array(afterValues.length).fill(afterMean));
+
+  const beforePointColors = beforeValues.map(v => (v > ucl || v < lcl) ? '#C0392B' : '#C77A1F');
+  const afterPointColors = afterValues.map(v => (v > ucl || v < lcl) ? '#C0392B' : '#1E8F5F');
+
+  const controlCtx = document.getElementById('ba-control-chart').getContext('2d');
+  if(window.__charts['ba-control']) window.__charts['ba-control'].destroy();
+
+  const beforeAfterDivider = {
+    id: 'baBeforeAfterDivider',
+    afterDraw(chart) {
+      if(!chart.chartArea || beforeCount <= 0 || beforeCount >= allValues.length) return;
+
+      const xBefore = chart.scales.x.getPixelForValue(beforeCount - 1);
+      const xAfter = chart.scales.x.getPixelForValue(beforeCount);
+      const x = (xBefore + xAfter) / 2;
+      const top = chart.chartArea.top;
+      const bottom = chart.chartArea.bottom;
+      const ctx = chart.ctx;
+
+      ctx.save();
+      ctx.strokeStyle = '#51617C';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.font = '600 11px "IBM Plex Mono", monospace';
+      ctx.fillStyle = '#C77A1F';
+      ctx.textAlign = 'right';
+      ctx.fillText('ANTES', x - 7, top - 8);
+
+      ctx.fillStyle = '#1E8F5F';
+      ctx.textAlign = 'left';
+      ctx.fillText('DEPOIS', x + 7, top - 8);
+      ctx.restore();
+    }
+  };
+
+  window.__charts['ba-control'] = new Chart(controlCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'ANTES',
+          data: beforeData,
+          borderColor: '#C77A1F',
+          backgroundColor: '#C77A1F',
+          pointBackgroundColor: beforePointColors,
+          pointBorderColor: beforePointColors,
+          pointRadius: 3.5,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          tension: 0,
+          spanGaps: false
+        },
+        {
+          label: 'DEPOIS',
+          data: afterData,
+          borderColor: '#1E8F5F',
+          backgroundColor: '#1E8F5F',
+          pointBackgroundColor: afterPointColors,
+          pointBorderColor: afterPointColors,
+          pointRadius: 3.5,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          tension: 0,
+          spanGaps: false
+        },
+        {
+          label: 'CL — Média ANTES',
+          data: fullCL,
+          borderColor: '#51617C',
+          borderDash: [6, 4],
+          pointRadius: 0,
+          borderWidth: 1.5
+        },
+        {
+          label: 'UCL — Limite Superior',
+          data: fullUCL,
+          borderColor: '#C0392B',
+          borderDash: [3, 3],
+          pointRadius: 0,
+          borderWidth: 1.3
+        },
+        {
+          label: 'LCL — Limite Inferior',
+          data: fullLCL,
+          borderColor: '#C0392B',
+          borderDash: [3, 3],
+          pointRadius: 0,
+          borderWidth: 1.3
+        },
+        {
+          label: 'Média DEPOIS',
+          data: afterMeanData,
+          borderColor: '#1E8F5F',
+          borderDash: [2, 5],
+          pointRadius: 0,
+          borderWidth: 1.3
+        }
+      ]
+    },
+    plugins: [beforeAfterDivider],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            title: items => `Observação ${items[0].label}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Sequência das observações' },
+          ticks: { maxTicksLimit: 20 }
+        },
+        y: {
+          title: { display: true, text: val }
+        }
+      }
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const baFile = document.getElementById('ba-after-file');
+  if(baFile) baFile.addEventListener('change', handleBeforeAfterFileSelect);
+
+  const ssMode = document.getElementById('ss-mode');
+  if(ssMode) ssMode.addEventListener('change', () => {
+    const isFindN = ssMode.value === 'find_n';
+    document.getElementById('ss-power-field').style.display = isFindN ? 'flex' : 'none';
+    document.getElementById('ss-n-field').style.display = isFindN ? 'none' : 'flex';
+  });
+});
+
+async function runSampleSize() {
+  const mode = document.getElementById('ss-mode').value;
+  const meanDiff = document.getElementById('ss-mean-diff').value;
+  const sd = document.getElementById('ss-sd').value;
+  const power = document.getElementById('ss-power').value;
+  const n = document.getElementById('ss-n').value;
+  const alpha = document.getElementById('ss-alpha').value;
+  if(meanDiff === '' || sd === '') return alert('Informe a diferença mínima a detectar e o desvio padrão estimado.');
+  if(mode === 'find_n' && power === '') return alert('Informe o poder desejado.');
+  if(mode === 'find_power' && n === '') return alert('Informe o N já coletado por grupo.');
+
+  const resStr = await pyodide.runPythonAsync(
+    `py_sample_size(${JSON.stringify(mode)}, ${JSON.stringify(meanDiff)}, ${JSON.stringify(sd)}, ${JSON.stringify(alpha)}, ${JSON.stringify(power)}, ${JSON.stringify(n)}, ${JSON.stringify('1')})`
+  );
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  const fmt = (v, d=4) => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : Number(v).toFixed(d);
+  let html = `
+    <div class="metric-card"><div class="metric-value">${fmt(res.effect_size,3)}</div><div class="metric-label">Tamanho do Efeito (d de Cohen)</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.alpha,3)}</div><div class="metric-label">α (significância)</div></div>
+  `;
+  if(res.mode === 'find_n') {
+    html += `<div class="metric-card" style="border-left:4px solid var(--improve);"><div class="metric-value">${Math.ceil(res.n_per_group)}</div><div class="metric-label">N necessário por grupo</div></div>
+      <div class="metric-card"><div class="metric-value">${fmt(res.power,3)}</div><div class="metric-label">Poder desejado</div></div>`;
+    document.getElementById('ss-interp').innerHTML = `<strong>Interpretação:</strong> Para detectar uma diferença de ${escapeHtml(meanDiff)} com desvio padrão de ${escapeHtml(sd)} (tamanho de efeito d = ${fmt(res.effect_size,3)}), com poder de ${fmt(res.power,3)} e α = ${fmt(res.alpha,3)}, são necessárias pelo menos <strong>${Math.ceil(res.n_per_group)} observações por grupo</strong> (ANTES e DEPOIS). Amostras menores que isso correm risco elevado de não detectar uma melhoria real (erro Tipo II).`;
+  } else {
+    html += `<div class="metric-card" style="border-left:4px solid var(--improve);"><div class="metric-value">${fmt(res.power,3)}</div><div class="metric-label">Poder Estatístico Estimado</div></div>
+      <div class="metric-card"><div class="metric-value">${res.n_per_group}</div><div class="metric-label">N por grupo (informado)</div></div>`;
+    const powerText = res.power >= 0.8 ? 'considerado adequado (≥ 0,80).' : 'abaixo do recomendado (0,80) — há risco relevante de não detectar uma diferença real desse tamanho.';
+    document.getElementById('ss-interp').innerHTML = `<strong>Interpretação:</strong> Com N = ${res.n_per_group} por grupo, diferença de ${escapeHtml(meanDiff)} e desvio padrão de ${escapeHtml(sd)} (d = ${fmt(res.effect_size,3)}), o poder estatístico estimado é ${fmt(res.power,3)} — ${powerText}`;
+  }
+  document.getElementById('ss-metrics').innerHTML = html;
+}
+
+async function runMonteCarlo() {
+  const val = document.getElementById('mc-val').value;
+  if(!val) return alert('Selecione a variável de resposta.');
+  if(!globalData.length) return alert('Carregue primeiro os dados do processo.');
+  const lsl = document.getElementById('mc-lsl').value;
+  const usl = document.getElementById('mc-usl').value;
+  const shift = document.getElementById('mc-shift').value || '0';
+  const shrink = document.getElementById('mc-shrink').value || '1';
+  const nsim = document.getElementById('mc-nsim').value || '100000';
+
+  const resStr = await pyodide.runPythonAsync(
+    `py_montecarlo(${JSON.stringify(JSON.stringify(globalData))}, ${JSON.stringify(val)}, ${JSON.stringify(lsl)}, ${JSON.stringify(usl)}, ${JSON.stringify(nsim)}, ${JSON.stringify(shift)}, ${JSON.stringify(shrink)})`
+  );
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  const fmt = (v, d=4) => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : Number(v).toFixed(d);
+  document.getElementById('mc-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${fmt(res.mean_baseline)}</div><div class="metric-label">Média Atual (dados carregados)</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.sd_baseline)}</div><div class="metric-label">Desvio Padrão Atual</div></div>
+    <div class="metric-card" style="border-left:4px solid var(--improve);"><div class="metric-value">${fmt(res.mean_sim)}</div><div class="metric-label">Média Simulada (Melhorada)</div></div>
+    <div class="metric-card" style="border-left:4px solid var(--improve);"><div class="metric-value">${fmt(res.sd_sim)}</div><div class="metric-label">Desvio Padrão Simulado</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.ppm,1)}</div><div class="metric-label">PPM / DPMO Projetado</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.sigma_level,2)}</div><div class="metric-label">Nível Sigma Projetado (deslocamento 1,5σ)</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.cp,3)}</div><div class="metric-label">Cp Projetado</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.cpk,3)}</div><div class="metric-label">Cpk Projetado</div></div>
+  `;
+
+  destroyChart('mc');
+  const specLines = [];
+  window.__charts['mc'] = new Chart(document.getElementById('mc-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: res.hist_edges.slice(0, -1).map((e, i) => ((e + res.hist_edges[i+1]) / 2).toFixed(2)),
+      datasets: [{ label: 'Frequência Simulada', data: res.hist_counts, backgroundColor: '#8E44AD', barPercentage: 1, categoryPercentage: 1 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: { title: { display: true, text: val }, ticks: { maxTicksLimit: 15 } }, y: { title: { display: true, text: 'Frequência' } } } }
+  });
+
+  document.getElementById('mc-interp').innerHTML = `<strong>Interpretação:</strong> Simulando ${Number(nsim).toLocaleString('pt-BR')} observações a partir de uma distribuição normal com média ${fmt(res.mean_sim)} (deslocamento de ${escapeHtml(shift)} em relação à média atual) e desvio padrão ${fmt(res.sd_sim)} (fator de redução ${escapeHtml(shrink)}), o processo melhorado projeta ${fmt(res.ppm,1)} PPM fora de especificação, equivalente a aproximadamente ${fmt(res.sigma_level,2)} sigma (convenção de deslocamento de 1,5σ) e Cpk projetado de ${fmt(res.cpk,3)}. Esta é uma projeção baseada em premissa de normalidade e nos parâmetros informados — trate como cenário exploratório, não como garantia de resultado.`;
+}
+
+async function runRSM() {
+  const a = document.getElementById('rsm-a').value;
+  const b = document.getElementById('rsm-b').value;
+  const y = document.getElementById('rsm-y').value;
+  const goal = document.getElementById('rsm-goal').value;
+  if(!a || !b || !y) return alert('Selecione os dois fatores (X1, X2) e a resposta Y.');
+  if(a === b) return alert('Selecione dois fatores diferentes.');
+
+  const resStr = await pyodide.runPythonAsync(
+    `py_rsm(${JSON.stringify(JSON.stringify(globalData))}, ${JSON.stringify(a)}, ${JSON.stringify(b)}, ${JSON.stringify(y)}, ${JSON.stringify(goal)})`
+  );
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  const fmt = (v, d=4) => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : Number(v).toFixed(d);
+  const fmtP = v => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : (Number(v) < 0.001 ? '< 0.001' : Number(v).toFixed(4));
+  document.getElementById('rsm-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${fmt(res.r2)}</div><div class="metric-label">R² do Modelo Quadrático</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.r2_adj)}</div><div class="metric-label">R² Ajustado</div></div>
+    <div class="metric-card" style="border-left:4px solid var(--improve);"><div class="metric-value">${fmt(res.best_a,3)}</div><div class="metric-label">${escapeHtml(a)} Ótimo</div></div>
+    <div class="metric-card" style="border-left:4px solid var(--improve);"><div class="metric-value">${fmt(res.best_b,3)}</div><div class="metric-label">${escapeHtml(b)} Ótimo</div></div>
+    <div class="metric-card" style="border-left:4px solid var(--improve);"><div class="metric-value">${fmt(res.best_y,3)}</div><div class="metric-label">Y Estimado no Ponto Ótimo</div></div>
+  `;
+
+  let coefHtml = '<thead><tr><th>Termo</th><th>Coeficiente</th><th>p-valor</th></tr></thead><tbody>';
+  Object.keys(res.coef).forEach(k => {
+    coefHtml += `<tr><td>${escapeHtml(k)}</td><td>${fmt(res.coef[k])}</td><td>${fmtP(res.pvalues[k])}</td></tr>`;
+  });
+  coefHtml += '</tbody>';
+  document.getElementById('rsm-coef-table').innerHTML = coefHtml;
+
+  const goalText = goal === 'max' ? 'maximizar' : 'minimizar';
+  document.getElementById('rsm-interp').innerHTML = `<strong>Interpretação:</strong> Um modelo quadrático (superfície de resposta) foi ajustado a ${escapeHtml(y)} em função de ${escapeHtml(a)} e ${escapeHtml(b)} (R² = ${fmt(res.r2)}). Dentro da faixa de dados observada, a combinação que tende a ${goalText} a resposta é ${escapeHtml(a)} ≈ ${fmt(res.best_a,3)} e ${escapeHtml(b)} ≈ ${fmt(res.best_b,3)}, com Y estimado de ${fmt(res.best_y,3)}. Esta busca é limitada à faixa de valores já testada nos dados — extrapolar para fora dessa região não é recomendado sem validação experimental adicional.`;
+}
+
+function destroyChart(key) {
+  if(window.__charts[key]) { window.__charts[key].destroy(); delete window.__charts[key]; }
+}
+
+async function runDOE() {
+  const a = document.getElementById('doe-a').value;
+  const b = document.getElementById('doe-b').value;
+  const c = document.getElementById('doe-c').value;
+  const d = document.getElementById('doe-d').value;
+  const y = document.getElementById('doe-y').value;
+  if(!a || !b || !y) return alert('Preencha os fatores A, B e a Resposta Y.');
+
+  const fmt = (v, dd=4) => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : Number(v).toFixed(dd);
+  const fmtP = v => v === null || v === undefined || !Number.isFinite(Number(v)) ? 'N/D' : (Number(v) < 0.001 ? '< 0.001' : Number(v).toFixed(4));
+
+  const resStr = await pyodide.runPythonAsync(
+    `py_doe(${JSON.stringify(JSON.stringify(globalData))}, ${JSON.stringify(a)}, ${JSON.stringify(b)}, ${JSON.stringify(c)}, ${JSON.stringify(d)}, ${JSON.stringify(y)})`
+  );
+  const res = JSON.parse(resStr);
+  if(res.error) return alert(res.error);
+
+  document.getElementById('doe-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${fmt(res.r2)}</div><div class="metric-label">R² do Modelo</div></div>
+    <div class="metric-card"><div class="metric-value">${fmt(res.r2_adj)}</div><div class="metric-label">R² Ajustado</div></div>
+    <div class="metric-card"><div class="metric-value">${res.n_factors}</div><div class="metric-label">Nº de Fatores</div></div>
+    <div class="metric-card"><div class="metric-value">${fmtP(res.resid_shapiro_p)}</div><div class="metric-label">Shapiro-Wilk (resíduos)</div></div>
+  `;
+
+  // Tabela ANOVA
+  let anovaHtml = '<thead><tr><th>Fonte</th><th>SQ</th><th>GL</th><th>F</th><th>p</th></tr></thead><tbody>';
+  res.anova.forEach(r => {
+    anovaHtml += `<tr><td>${escapeHtml(r.source)}</td><td>${fmt(r.sum_sq)}</td><td>${r.df == null ? 'N/D' : r.df}</td><td>${fmt(r.F)}</td><td>${fmtP(r.p)}</td></tr>`;
+  });
+  anovaHtml += '</tbody>';
+  document.getElementById('doe-anova-table').innerHTML = anovaHtml;
+
+  // Pareto dos efeitos (magnitude absoluta, ordenado)
+  const sortedEffects = [...res.effects].sort((x, w) => w.abs_value - x.abs_value);
+  destroyChart('doe-pareto');
+  window.__charts['doe-pareto'] = new Chart(document.getElementById('doe-pareto-chart').getContext('2d'), {
+    type: 'bar',
+    data: { labels: sortedEffects.map(e => e.effect), datasets: [{ label: '|Efeito|', data: sortedEffects.map(e => e.abs_value), backgroundColor: sortedEffects.map(e => e.p < 0.05 ? '#C77A1F' : '#D7DCE6') }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+
+  // Half-normal
+  destroyChart('doe-halfnormal');
+  window.__charts['doe-halfnormal'] = new Chart(document.getElementById('doe-halfnormal-chart').getContext('2d'), {
+    type: 'scatter',
+    data: { datasets: [{ label: 'Efeitos', data: res.half_normal.map(p => ({ x: p.theoretical, y: p.abs_effect })), backgroundColor: '#C77A1F' }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { x: { title: { display: true, text: 'Quantil Teórico Half-Normal' } }, y: { title: { display: true, text: '|Efeito|' } } } }
+  });
+
+  // Efeitos principais — um dataset por fator, eixo x = nível (-1/+1), pequenas séries lado a lado via labels combinadas
+  const meLabels = [];
+  const meValues = [];
+  const meColors = ['#C77A1F', '#6D4AFF', '#0E7C86', '#1E8F5F'];
+  Object.keys(res.main_effects_plot).forEach(L => {
+    const me = res.main_effects_plot[L];
+    me.levels.forEach((lvl, i) => { meLabels.push(`${L} (${lvl})`); meValues.push(me.means[i]); });
+  });
+  destroyChart('doe-main-effects');
+  window.__charts['doe-main-effects'] = new Chart(document.getElementById('doe-main-effects-chart').getContext('2d'), {
+    type: 'bar',
+    data: { labels: meLabels, datasets: [{ label: 'Média de Y por nível', data: meValues, backgroundColor: '#0E7C86' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+
+  // Interação A x B
+  destroyChart('doe-interaction');
+  if(res.interaction_plot) {
+    const ip = res.interaction_plot;
+    window.__charts['doe-interaction'] = new Chart(document.getElementById('doe-interaction-chart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: ip.levels_a.map(String),
+        datasets: ip.series.map((s, i) => ({ label: `${ip.factor_b} = ${s.level_b}`, data: s.means, borderColor: meColors[i % meColors.length], backgroundColor: meColors[i % meColors.length], tension: 0 }))
+      },
+      options: { responsive: true, maintainAspectRatio: false,
+        scales: { x: { title: { display: true, text: ip.factor_a } }, y: { title: { display: true, text: 'Média de Y' } } } }
+    });
+  }
+
+  // Resíduos vs. Ajustados
+  destroyChart('doe-resid-fitted');
+  window.__charts['doe-resid-fitted'] = new Chart(document.getElementById('doe-resid-fitted-chart').getContext('2d'), {
+    type: 'scatter',
+    data: { datasets: [{ label: 'Resíduo', data: res.fitted.map((f, i) => ({ x: f, y: res.resid[i] })), backgroundColor: '#6D4AFF' }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { x: { title: { display: true, text: 'Valor Ajustado' } }, y: { title: { display: true, text: 'Resíduo' } } } }
+  });
+
+  // Probabilidade normal dos resíduos
+  destroyChart('doe-resid-qq');
+  window.__charts['doe-resid-qq'] = new Chart(document.getElementById('doe-resid-qq-chart').getContext('2d'), {
+    type: 'scatter',
+    data: { datasets: [{ label: 'Resíduos', data: res.normal_q.map((q, i) => ({ x: q, y: res.resid_sorted[i] })), backgroundColor: '#C0392B' }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { x: { title: { display: true, text: 'Quantil Teórico Normal' } }, y: { title: { display: true, text: 'Resíduo Ordenado' } } } }
+  });
+
+  // Cube plot (somente 3 fatores)
+  const cubeWrap = document.getElementById('doe-cube-wrap');
+  if(res.cube) {
+    cubeWrap.style.display = 'block';
+    let cubeHtml = '<thead><tr><th>A</th><th>B</th><th>C</th><th>Média de Y</th><th>N</th></tr></thead><tbody>';
+    res.cube.forEach(pt => {
+      cubeHtml += `<tr><td>${pt.A}</td><td>${pt.B}</td><td>${pt.C}</td><td>${fmt(pt.mean)}</td><td>${pt.n}</td></tr>`;
+    });
+    cubeHtml += '</tbody>';
+    document.getElementById('doe-cube-table').innerHTML = cubeHtml;
+  } else {
+    cubeWrap.style.display = 'none';
+  }
+
+  const sigEffects = res.effects.filter(e => e.p < 0.05).map(e => e.effect);
+  const lofRow = res.anova.find(r => r.source === 'Residual');
+  const normalityText = res.resid_shapiro_p == null ? '' : (res.resid_shapiro_p < 0.05 ? ' Os resíduos apresentam evidência de desvio da normalidade — interprete o modelo com cautela.' : ' Os resíduos não apresentam evidência de desvio da normalidade, dando suporte à validade do modelo.');
+  document.getElementById('doe-interp').innerHTML = `<strong>Interpretação:</strong> O planejamento de experimentos (fatorial completo, ${res.n_factors} fatores) avaliou o impacto dos efeitos principais e interações sobre ${escapeHtml(y)} (R² = ${fmt(res.r2)}; R² ajustado = ${fmt(res.r2_adj)}). ${sigEffects.length ? `Efeitos estatisticamente significativos (p &lt; 0,05): ${sigEffects.map(escapeHtml).join(', ')}.` : 'Nenhum efeito foi estatisticamente significativo a 5%.'}${normalityText} Use o gráfico de Pareto e o half-normal para priorizar quais fatores merecem ação, e os gráficos de resíduos para checar se o modelo está bem ajustado antes de tomar decisões.`;
+}
+
+// Relatório Executivo
+function collectReportParams(panel) {
+  const parts = [];
+  panel.querySelectorAll('.field').forEach(f => {
+    if (getComputedStyle(f).display === 'none') return;
+    const label = f.querySelector('label');
+    if (!label) return;
+    let value = '';
+    const multi = f.querySelectorAll('.reg-m-x-check');
+    if (multi.length) {
+      value = Array.from(multi).filter(c => c.checked).map(c => c.value).join(', ');
+    } else {
+      const ctrl = f.querySelector('select, input');
+      if (!ctrl || ctrl.type === 'file') return;
+      if (ctrl.tagName === 'SELECT') {
+        const opt = ctrl.options[ctrl.selectedIndex];
+        value = opt ? opt.text : '';
+      } else {
+        value = ctrl.value;
+      }
+    }
+    if (String(value).trim() === '') return;
+    parts.push(`<strong>${escapeHtml(label.textContent.trim())}</strong>: ${escapeHtml(value)}`);
+  });
+  return parts.join(' &nbsp;·&nbsp; ');
+}
+
+function panelHasResults(panel) {
+  if (Array.from(panel.querySelectorAll('.interp-box, .metrics-grid')).some(e => e.textContent.trim() !== '')) return true;
+  if (panel.querySelector('table.result-table')) return true;
+  return Array.from(panel.querySelectorAll('canvas')).some(cv => {
+    try { return typeof Chart !== 'undefined' && Chart.getChart && !!Chart.getChart(cv); } catch (e) { return false; }
+  });
+}
+
+function buildToolReport(panel, num) {
+  const h4 = panel.querySelector('h4');
+  const title = h4 ? h4.textContent.trim() : 'Ferramenta';
+  const params = collectReportParams(panel);
+  const clone = panel.cloneNode(true);
+
+  // Gráficos (canvas) -> imagens estáticas do que está na tela
+  const origCanvases = panel.querySelectorAll('canvas');
+  const cloneCanvases = clone.querySelectorAll('canvas');
+  origCanvases.forEach((cv, i) => {
+    const cc = cloneCanvases[i];
+    const box = cc.closest('.chart-box') || cc.parentElement;
+    let chart = null;
+    try { chart = (typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(cv) : null; } catch (e) {}
+    if (chart) {
+      try { chart.update('none'); } catch (e) {}
+      const wrap = document.createElement('div');
+      wrap.className = 'report-chart-wrap';
+      const img = document.createElement('img');
+      img.alt = 'Gráfico — ' + title;
+      img.src = cv.toDataURL('image/png');
+      wrap.appendChild(img);
+      box.replaceWith(wrap);
+    } else {
+      box.remove();
+    }
+  });
+  clone.querySelectorAll('.chart-row').forEach(r => { if (!r.children.length) r.remove(); });
+
+  // Descrição genérica que antecede os controles não entra no relatório
+  let passedControls = false;
+  Array.from(clone.children).forEach(ch => {
+    if (ch.classList.contains('controls-row')) passedControls = true;
+    else if (!passedControls && ch.classList.contains('desc')) ch.remove();
+  });
+
+  // Remove título original, controles e blocos ainda vazios
+  clone.querySelectorAll('h4, .field, .controls-row, button, input, select').forEach(e => e.remove());
+  clone.querySelectorAll('.metrics-grid, .interp-box, [id$="container"], [id$="-table"]').forEach(e => {
+    if (!e.textContent.trim() && !e.querySelector('img, table')) e.remove();
+  });
+  clone.removeAttribute('id');
+  clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+
+  const wrap = document.createElement('div');
+  wrap.className = 'report-tool';
+  wrap.innerHTML = `<h5>${num}. ${escapeHtml(title)}</h5>` + (params ? `<div class="report-params">${params}</div>` : '');
+  while (clone.firstChild) wrap.appendChild(clone.firstChild);
+  return wrap;
+}
+
+function openReportModal() {
+  const modal = document.getElementById('report-modal');
+  const projectInput = document.getElementById('project-name');
+  const title = (projectInput && projectInput.value) || 'Projeto de Melhoria Seis Sigma';
+  document.getElementById('report-title').textContent = `Relatório Executivo — ${title}`;
+
+  const activeBtn = document.querySelector('.phase-btn.current');
+  const stage = activeBtn ? activeBtn.textContent.trim() : '';
+  const activeMain = document.querySelector('main.tab-content.active');
+  const tabColor = activeMain ? activeMain.style.getPropertyValue('--tab-color').trim() : '';
+  if (tabColor) modal.style.setProperty('--tab-color', tabColor);
+  const fileInput = document.getElementById('csvFile');
+  const fileName = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0].name : '';
+
+  document.getElementById('report-body').innerHTML = `
+    <div class="report-section report-meta">
+      <h4>1. Visão Geral do Projeto</h4>
+      <p>Projeto: <strong>${escapeHtml(title)}</strong></p>
+      ${stage ? `<p>Etapa DMAIC: <strong>${escapeHtml(stage)}</strong></p>` : ''}
+      ${fileName ? `<p>Arquivo de dados: <strong>${escapeHtml(fileName)}</strong></p>` : ''}
+      <p>Total de registros analisados: ${globalData.length}</p>
+      <p>Variáveis: ${columns.length} (numéricas: ${numericCols.length} · categóricas: ${categoricalCols.length})</p>
+      <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+    </div>
+    <div class="report-section" id="report-analyses">
+      <h4>2. Análises Executadas em Tela</h4>
+    </div>
+  `;
+
+  const holder = document.getElementById('report-analyses');
+  const openPanels = Array.from(document.querySelectorAll('.tool-panel.open'));
+  let count = 0, skipped = 0;
+  openPanels.forEach(panel => {
+    if (!panelHasResults(panel)) { skipped++; return; }
+    count++;
+    holder.appendChild(buildToolReport(panel, `2.${count}`));
+  });
+  if (!count) {
+    const p = document.createElement('p');
+    p.textContent = globalData.length
+      ? 'Nenhuma análise foi executada nas ferramentas abertas em tela. Abra uma ferramenta na lista à esquerda, clique em Executar e gere o relatório novamente.'
+      : 'Nenhum dado foi carregado e nenhuma análise foi executada ainda. Carregue um arquivo CSV, execute as ferramentas desejadas e gere o relatório novamente.';
+    holder.appendChild(p);
+  } else if (skipped) {
+    const p = document.createElement('p');
+    p.className = 'report-note';
+    p.textContent = `${skipped} ferramenta(s) aberta(s) sem resultados não foram incluídas.`;
+    holder.appendChild(p);
+  }
+
+  modal.style.display = 'flex';
+  const content = modal.querySelector('.modal-content');
+  if (content) content.scrollTop = 0;
+}
+
+function exportReportPDF() {
+  const previousTitle = document.title;
+  const activeBtn = document.querySelector('.phase-btn.current');
+  const stage = (activeBtn ? activeBtn.textContent.trim() : 'Painel')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_');
+  document.title = `Relatorio_DMAIC_${stage}_${new Date().toISOString().slice(0, 10)}`;
+  const restoreTitle = () => {
+    document.title = previousTitle;
+    window.removeEventListener('afterprint', restoreTitle);
+  };
+  window.addEventListener('afterprint', restoreTitle);
+  window.print();
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal').style.display = 'none';
+}
+
+window.addEventListener('DOMContentLoaded', initPyodideEngine);
+</script>
+</body>
+</html>
