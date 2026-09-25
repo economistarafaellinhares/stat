@@ -1,0 +1,3174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DMAIC Studio — Measure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#EEF1F6; --card:#FFFFFF; --ink:#12203A; --muted:#51617C; --line:#D7DCE6; --teal:#0E7C86; --teal-d:#0A5E66; --teal-l:#E3F2F3;
+  --ok:#1E8F5F; --ok-bg:#E4F5EC; --warn:#B9770E; --warn-bg:#FFF3DC; --bad:#C0392B; --bad-bg:#FBE7E5; --info:#2E5E9E; --info-bg:#E6EEF8;
+  --sans:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace; --head:'Space Grotesk','IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:14px;line-height:1.5}
+h1,h2,h3,h4,.brand,.phase-btn{font-family:var(--head);}
+::selection{background:var(--teal);color:#fff;}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+
+/* cabeçalho */
+.app-header{background:var(--ink);color:#fff;padding:22px 28px 18px;border-bottom:4px solid var(--teal);}
+.header-row{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;}
+.brand{font-size:22px;font-weight:700;}
+.brand small{display:block;font-size:11px;color:#9DB0CE;font-weight:400;margin-top:2px;}
+.project-field{display:flex;flex-direction:column;gap:4px;}
+.project-field label{font-size:10px;color:#9DB0CE;text-transform:uppercase;letter-spacing:.08em;}
+.project-field input{background:transparent;border:none;border-bottom:1px solid #3C4A63;color:#fff;font-family:var(--head);font-size:15px;padding:4px 2px;min-width:240px;}
+.project-field input:focus{outline:none;border-bottom-color:var(--teal);}
+
+/* Navegação entre fases DMAIC (padronizada em todas as páginas) */
+.phase-nav{display:flex;gap:2px;flex-wrap:wrap;}
+.phase-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;font-family:var(--head);font-size:12.5px;font-weight:600;color:#9DB0CE;text-decoration:none;border:1px solid transparent;transition:.15s;}
+.phase-btn:hover{color:#fff;border-color:#3C4A63;}
+.phase-btn .dot{width:7px;height:7px;border-radius:50%;background:var(--phase-color);flex:0 0 auto;margin:0;}
+.phase-btn.current{color:#fff;background:rgba(255,255,255,.08);border-color:var(--phase-color);cursor:default;}
+
+/* botões */
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:4px;padding:9px 16px;font-family:var(--mono);font-size:12.5px;cursor:pointer;transition:.12s;align-self:flex-end}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.5;cursor:wait}
+.btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--ink)}
+.btn-secondary{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:4px;padding:7px 12px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:.12s;font-weight:600;}
+.btn-secondary:hover{border-color:var(--ink);}
+
+/* banner e progresso */
+.status-banner{margin-top:10px;padding:9px 14px;border-radius:4px;font-size:12.5px;display:none;}
+.status-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #B9E5CE;display:block;}
+.status-error{background:var(--bad-bg);color:var(--bad);border:1px solid #F0C6C0;display:block;}
+.status-load{background:var(--info-bg);color:var(--info);border:1px solid #B6D8E2;display:block;}
+#progress-container{margin-top:8px;background:var(--line);border-radius:4px;overflow:hidden;height:8px;display:none;}
+#progress-fill{background:var(--teal);height:100%;width:0;transition:width .2s ease;}
+
+.wrap{max-width:1240px;margin:0 auto;padding:24px}
+
+/* upload — mesmo padrão flat das demais páginas (sem cartão em volta) */
+.upload-bar{max-width:1240px;margin:20px auto 0;padding:0 24px;}
+.upload-zone{background:var(--card);border:1.5px dashed var(--line);border-radius:6px;padding:18px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;transition:.15s;cursor:pointer;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--teal);background:#F1FAFA}
+.upload-zone.loaded{border-style:solid;border-color:var(--teal)}
+.upload-zone .icon{width:40px;height:40px;flex:0 0 auto;border-radius:6px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--teal);font-size:20px;}
+.upload-zone .text strong{display:block;font-family:var(--head);font-size:14px}
+.upload-zone .text span{color:var(--muted);font-size:12px}
+.settings{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-top:14px}
+.upload-options{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;}
+.upload-options label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+.upload-options select{border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-family:inherit;font-size:12px;background:#fff;}
+.hint{color:var(--muted);font-size:12px;}
+.preview-wrap{margin-top:14px;overflow:auto;max-height:220px;border:1px solid var(--line);border-radius:6px;display:none;background:var(--card);}
+.upload-zone.loaded ~ .preview-wrap{display:block;}
+.preview-table{border-collapse:collapse;width:100%;font-size:11.5px}
+.preview-table th{position:sticky;top:0;background:var(--bg);text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.preview-table td{padding:5px 10px;border-bottom:1px solid #EEF1F6;white-space:nowrap}
+.th-type{font:500 10px var(--sans);color:var(--teal-d);text-transform:none}
+
+/* campos */
+.field{display:flex;flex-direction:column;gap:4px;min-width:150px}
+.field.wide{flex:1 1 100%}
+.field label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.field select,.field input[type=number],.field input[type=text],.field textarea{border:1px solid var(--line);border-radius:4px;padding:7px 9px;font-family:inherit;font-size:12.5px;min-width:150px;background:#fff;color:var(--ink)}
+.field select:focus,.field input:focus,.field textarea:focus{outline:none;border-color:var(--teal)}
+.field textarea{width:100%;resize:vertical}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px!important;color:var(--ink)!important;cursor:pointer}
+.multi{display:flex;flex-wrap:wrap;gap:6px 18px}
+
+/* navegação secundária (ações da página) */
+.tabs-nav{max-width:1240px;margin:22px auto 0;padding:0 24px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);justify-content:flex-end;align-items:center;}
+.actions-top{display:flex;gap:10px;padding-bottom:6px;}
+
+/* layout */
+.layout{display:grid;grid-template-columns:280px 1fr;gap:24px;margin-top:22px;align-items:start}
+.sidebar{position:sticky;top:20px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px;max-height:85vh;overflow:auto}
+#cl-count{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
+.cl-group{font-size:11px;font-family:var(--head);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+.cl-group:first-child{margin-top:0}
+.checklist-item{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-radius:5px;cursor:pointer;font-size:12.5px;line-height:1.35}
+.checklist-item:hover{background:var(--bg)}
+.checklist-item input{margin-top:3px;accent-color:var(--teal)}
+.flow-hint{font-size:12px;color:var(--muted);border-top:1px solid var(--line);margin-top:14px;padding-top:10px}
+
+/* painéis */
+#tool-panels{display:flex;flex-direction:column;gap:16px;min-width:0}
+.tool-panel{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:8px;padding:20px 22px;min-width:0}
+.tool-panel h4{font-size:16px;font-weight:600;margin:0 0 4px}
+.tool-panel .desc{color:var(--muted);font-size:12.5px;margin-bottom:14px;max-width:80ch}
+.controls-row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:16px}
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.metrics-grid:empty{display:none}
+.metric-card{background:var(--bg);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;border-left:4px solid transparent}
+.metric-value{font-family:var(--head);font-size:17px;font-weight:700;color:var(--ink);word-break:break-word}
+.metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tone-ok{border-left-color:var(--ok)} .tone-ok .metric-value{color:var(--ok)}
+.tone-warn{border-left-color:#E0A11B} .tone-warn .metric-value{color:var(--warn)}
+.tone-bad{border-left-color:var(--bad)} .tone-bad .metric-value{color:var(--bad)}
+.alerts{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.alert{padding:8px 12px;border-radius:4px;font-size:12.5px;border-left:3px solid}
+.a-ok{background:var(--ok-bg);border-color:var(--ok);color:#14663f} .a-warn{background:var(--warn-bg);border-color:#E0A11B;color:#7a4a00}
+.a-bad{background:var(--bad-bg);border-color:var(--bad);color:#8f231d} .a-info{background:var(--info-bg);border-color:var(--info);color:#1f4677}
+.chart-box{height:320px;margin-bottom:14px;position:relative}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:720px){.chart-row{grid-template-columns:1fr}}
+h5{font:600 13px var(--head);margin:18px 0 6px;color:var(--ink)}
+.tbl-wrap{overflow-x:auto;margin:4px 0 6px}
+.result-table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:12px}
+.result-table th{background:var(--bg);text-align:left;font-weight:600;padding:8px;border-bottom:1px solid var(--line)}
+.result-table td{padding:7px 8px;border-bottom:1px solid #EEF1F6;vertical-align:middle}
+.result-table td.num{font-size:12px;text-align:right}
+.result-table th.num{text-align:right}
+.result-table tr.row-vital td{background:var(--teal-l)}
+.type-override{border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:12.5px;background:#fff}
+.interp-box{background:#F5F7FB;border-left:3px solid var(--teal);border-radius:4px;padding:12px 14px;font-size:12.5px;color:var(--ink);min-height:18px;margin-top:10px}
+.interp-box:empty{display:none}
+.interp-box ul{margin:8px 0 0 18px;padding:0}
+.interp-box li{margin:3px 0}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;vertical-align:1px}
+.b-ok{background:var(--ok-bg);color:var(--ok)} .b-warn{background:var(--warn-bg);color:var(--warn)} .b-bad{background:var(--bad-bg);color:var(--bad)} .b-info{background:var(--info-bg);color:var(--info)}
+
+/* relatório */
+.modal{display:none;position:fixed;inset:0;background:rgba(18,32,58,.6);z-index:50;overflow:auto;padding:24px}
+.modal.open{display:block}
+body.modal-open{overflow:hidden}
+.modal-card{max-width:1050px;margin:0 auto;background:#fff;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.modal-bar{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;border-radius:8px 8px 0 0}
+#report-content{padding:30px 38px 40px}
+.rep-head{border-bottom:3px solid var(--teal);padding-bottom:12px;margin-bottom:18px}
+.rep-kicker{font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.rep-head h2{font:700 24px var(--head);margin:4px 0}
+.rep-date{color:var(--muted);font-size:12.5px}
+.rep-section{margin:24px 0;break-inside:auto}
+.rep-section h3{font:700 16px var(--head);border-bottom:1px solid var(--line);padding-bottom:5px;margin:0 0 10px;color:var(--teal)}
+.rep-params{font-size:12.5px;color:var(--muted);margin:0 0 8px}
+.rep-note{font-size:12.5px;color:var(--muted)}
+.rep-chart{max-width:100%;height:auto;border:1px solid var(--line);border-radius:6px;margin:8px 0;break-inside:avoid}
+.rep-table td,.rep-table th{text-align:left}
+.rep-table td.num{text-align:right;white-space:nowrap}
+.rep-table{font-size:12px}
+.rep-table th,.rep-table td{padding:5px 7px}
+.rep-section .metrics-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr} .sidebar{position:static;max-height:none}
+  .app-header{padding:16px} .wrap{padding:16px}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  body > *:not(#report-modal){display:none!important}
+  .modal{position:static;display:block!important;background:none;padding:0;overflow:visible}
+  .modal-card{box-shadow:none;border-radius:0;max-width:none}
+  .modal-bar{display:none}
+  #report-content{padding:0}
+  .rep-section h3{break-after:avoid} .metric-card,.rep-chart,.result-table tr{break-inside:avoid}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-row">
+    <div class="brand">DMAIC Studio<small>Painel Estatístico Seis Sigma · Fase Measure</small></div>
+    <nav class="phase-nav" aria-label="Navegação entre fases DMAIC">
+      <a href="index.html" class="phase-btn current" style="--phase-color:#0E7C86;"><span class="dot"></span>Measure</a>
+      <a href="analyseindex.html" class="phase-btn" style="--phase-color:#6D4AFF;"><span class="dot"></span>Analyze</a>
+      <a href="improve.html" class="phase-btn" style="--phase-color:#C77A1F;"><span class="dot"></span>Improve</a>
+      <a href="Control.html" class="phase-btn" style="--phase-color:#1E8F5F;"><span class="dot"></span>Control</a>
+    </nav>
+    <div class="project-field"><label for="project-name">Projeto</label><input type="text" id="project-name" placeholder="Nome do projeto de melhoria"></div>
+  </div>
+</header>
+<script>(function(){var i=document.getElementById('project-name');if(!i)return;var s=localStorage.getItem('dmaic-project-name');if(s&&!i.value)i.value=s;i.addEventListener('input',function(){localStorage.setItem('dmaic-project-name',i.value);});})();</script>
+
+<div class="upload-bar">
+  <label class="upload-zone" id="upload-zone" for="csvFile">
+    <div class="icon">⇪</div>
+    <div class="text">
+      <strong>Carregar dados (.csv / .xlsx / .xls)</strong>
+      <span>Arraste o arquivo ou clique para escolher · UTF-8 ou Windows-1252 · vírgula, ponto e vírgula ou tab</span>
+    </div>
+    <input type="file" id="csvFile" accept=".csv,.txt,.tsv,text/csv,.xlsx,.xls" hidden>
+  </label>
+  <button type="button" class="btn-secondary" id="btn-sample" style="margin-top:10px;">🧪 Usar dados de exemplo</button>
+  <div class="upload-options">
+    <label for="set-decimal">Separador decimal</label>
+    <select id="set-decimal"><option value="auto">Automático (recomendado)</option><option value="dot">Ponto — 1234.56</option><option value="comma">Vírgula — 1234,56</option></select>
+    <span class="hint">Detectado por coluna; force aqui se a detecção automática errar em alguma coluna.</span>
+  </div>
+  <div class="settings">
+    <div class="field" style="min-width:110px"><label for="set-alpha">Significância (α)</label><input type="number" id="set-alpha" value="0.05" step="0.01" min="0.001" max="0.2"></div>
+    <div class="field"><label>&nbsp;</label><label class="chk"><input type="checkbox" id="set-shift" checked> Deslocamento de 1,5σ no nível sigma</label></div>
+  </div>
+  <div class="status-banner" id="status-banner"></div>
+  <div id="progress-container"><div id="progress-fill"></div></div>
+  <div class="preview-wrap"><div id="data-preview"></div></div>
+</div>
+
+<nav class="tabs-nav" id="tabs-nav">
+  <div class="actions-top">
+    <button type="button" class="btn-secondary" id="btn-report">📄 Gerar Relatório Executivo</button>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="sidebar">
+      <div id="cl-count">Selecione as análises</div>
+      <div id="checklist"></div>
+      <p class="flow-hint">Fluxo sugerido: dimensionar a coleta → validar o sistema de medição → explorar e checar normalidade → confirmar estabilidade → calcular a capabilidade (linha de base).</p>
+    </aside>
+    <section id="tool-panels"></section>
+  </div>
+</main>
+
+
+<div class="modal" id="report-modal">
+  <div class="modal-card">
+    <div class="modal-bar"><button type="button" class="btn" id="btn-print">Imprimir / salvar PDF</button><button type="button" class="btn btn-ghost" id="btn-close-report">Fechar</button></div>
+    <article id="report-content"></article>
+  </div>
+</div>
+
+<script type="text/x-python" id="py-src">
+# ===================== DMAIC Studio — motor estatístico (Measure) =====================
+import json, math
+import numpy as np
+import pandas as pd
+from scipy import stats
+from scipy.special import gammaln
+
+
+class UserError(Exception):
+    pass
+
+
+DF = pd.DataFrame()
+COLTYPES = {}
+
+# Constantes de cartas de controle (n = 2..25)
+_D2 = [1.128, 1.693, 2.059, 2.326, 2.534, 2.704, 2.847, 2.970, 3.078, 3.173, 3.258, 3.336, 3.407, 3.472,
+       3.532, 3.588, 3.640, 3.689, 3.735, 3.778, 3.819, 3.858, 3.895, 3.931]
+_D3 = [0.853, 0.888, 0.880, 0.864, 0.848, 0.833, 0.820, 0.808, 0.797, 0.787, 0.778, 0.770, 0.763, 0.756,
+       0.750, 0.744, 0.739, 0.734, 0.729, 0.724, 0.720, 0.716, 0.712, 0.708]
+
+
+def d2(n):
+    return _D2[int(n) - 2]
+
+
+def d3(n):
+    return _D3[int(n) - 2]
+
+
+def c4(n):
+    n = float(n)
+    return math.sqrt(2.0 / (n - 1.0)) * math.exp(gammaln(n / 2.0) - gammaln((n - 1.0) / 2.0))
+
+
+# ---------------------------------------------------------------- infraestrutura
+def _clean(o):
+    if o is None:
+        return None
+    if isinstance(o, dict):
+        return {str(k): _clean(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple, set)):
+        return [_clean(v) for v in o]
+    if isinstance(o, np.ndarray):
+        return [_clean(v) for v in o.tolist()]
+    if isinstance(o, (bool, np.bool_)):
+        return bool(o)
+    if isinstance(o, (int, np.integer)):
+        return int(o)
+    if isinstance(o, (float, np.floating)):
+        f = float(o)
+        return f if math.isfinite(f) else None
+    if isinstance(o, pd.Timestamp):
+        return o.isoformat()
+    return o
+
+
+def _tool(fn):
+    def wrapper(args_json="{}"):
+        try:
+            a = json.loads(args_json) if args_json else {}
+            out = fn(a)
+        except UserError as e:
+            out = {"error": str(e)}
+        except Exception as e:  # noqa
+            out = {"error": "Falha no cálculo (%s: %s)" % (type(e).__name__, e)}
+        return json.dumps(_clean(out), allow_nan=False)
+    wrapper.__name__ = fn.__name__
+    return wrapper
+
+
+def _f(v, d=1):
+    return ("%.*f" % (d, v)).replace(".", ",")
+
+
+def _g(v):
+    return ("%g" % v).replace(".", ",")
+
+
+def _nat(v):
+    try:
+        return (0, float(v), "")
+    except Exception:
+        return (1, 0.0, str(v))
+
+
+def _cat(s):
+    def f(v):
+        if v is None:
+            return None
+        if isinstance(v, float) and math.isnan(v):
+            return None
+        if isinstance(v, (float, np.floating)):
+            fv = float(v)
+            if math.isnan(fv):
+                return None
+            return str(int(fv)) if fv.is_integer() else repr(fv)
+        if isinstance(v, (int, np.integer)):
+            return str(int(v))
+        try:
+            if pd.isna(v):
+                return None
+        except Exception:
+            pass
+        return str(v)
+    return s.map(f)
+
+
+def _need(col, label="Selecione uma coluna válida."):
+    if col is None or col == "" or col not in DF.columns:
+        raise UserError(label)
+
+
+def _series(col, order=None):
+    _need(col)
+    s = pd.to_numeric(DF[col], errors="coerce")
+    if order:
+        if order not in DF.columns:
+            raise UserError("Coluna de ordem/tempo inválida.")
+        idx = DF[order].sort_values(kind="mergesort", na_position="last").index
+        s = s.loc[idx]
+    return s.dropna()
+
+
+def _opt(a, k):
+    v = a.get(k)
+    if v is None or v == "":
+        return None
+    return float(v)
+
+
+def _fmt_lab(v):
+    if isinstance(v, pd.Timestamp):
+        if v.hour or v.minute or v.second:
+            return v.strftime("%Y-%m-%d %H:%M")
+        return v.strftime("%Y-%m-%d")
+    if isinstance(v, (float, np.floating)):
+        return "%g" % v
+    return str(v)
+
+
+def _labels(index, order):
+    if order and order in DF.columns:
+        out = []
+        for v in DF[order].loc[index]:
+            out.append("" if pd.isna(v) else _fmt_lab(v))
+        return out
+    return [str(i + 1) for i in range(len(index))]
+
+
+def _hist(x, bins=None, extra=()):
+    x = np.asarray(x, float)
+    n = len(x)
+    lo, hi = float(np.min(x)), float(np.max(x))
+    if hi == lo:
+        lo, hi = lo - 0.5, hi + 0.5
+    if bins in (None, "", 0, "auto"):
+        q1, q3 = np.percentile(x, [25, 75])
+        iqr = q3 - q1
+        if iqr > 0:
+            wfd = 2 * iqr * n ** (-1.0 / 3.0)
+            nb = int(math.ceil((hi - lo) / wfd))
+        else:
+            nb = int(math.ceil(math.log2(n) + 1))
+        nb = int(min(max(nb, 5), 40))
+    else:
+        nb = int(min(max(int(bins), 3), 60))
+    w = (hi - lo) / nb
+    pts = [lo, hi] + [float(e) for e in extra if e is not None]
+    elo, ehi = min(pts), max(pts)
+    nt = int(math.ceil((ehi - elo) / w - 1e-9))
+    if nt > 60:
+        w = (ehi - elo) / 60.0
+        nt = 60
+    edges = elo + w * np.arange(nt + 1)
+    counts, _ = np.histogram(x, bins=edges)
+    centers = (edges[:-1] + edges[1:]) / 2.0
+    return edges, counts, centers, w
+
+
+def _curve(mu, sd, n, w, lo, hi, m=120):
+    xs = np.linspace(lo, hi, m)
+    ys = n * w * stats.norm.pdf(xs, mu, sd)
+    return [[float(p), float(q)] for p, q in zip(xs, ys)]
+
+
+def _ad_p(a2s):
+    if a2s < 0.2:
+        p = 1 - math.exp(-13.436 + 101.14 * a2s - 223.73 * a2s ** 2)
+    elif a2s < 0.34:
+        p = 1 - math.exp(-8.318 + 42.796 * a2s - 59.938 * a2s ** 2)
+    elif a2s < 0.6:
+        p = math.exp(0.9177 - 4.279 * a2s - 1.38 * a2s ** 2)
+    elif a2s < 10:
+        p = math.exp(1.2937 - 5.709 * a2s + 0.0186 * a2s ** 2)
+    else:
+        p = 3.7e-24
+    return float(min(max(p, 0.0), 1.0))
+
+
+def _normality(x, alpha=0.05):
+    x = np.asarray(x, float)
+    n = len(x)
+    out = {"n": n, "ad": None, "ad_p": None, "sw": None, "sw_p": None, "normal": None,
+           "skew": None, "kurt": None}
+    if n < 3 or np.std(x, ddof=1) == 0:
+        return out
+    xs = np.sort(x)
+    z = (xs - xs.mean()) / xs.std(ddof=1)
+    cdf = np.clip(stats.norm.cdf(z), 1e-12, 1 - 1e-12)
+    i = np.arange(1, n + 1)
+    a2 = float(-n - np.sum((2 * i - 1) / n * (np.log(cdf) + np.log(1 - cdf[::-1]))))
+    a2s = a2 * (1 + 0.75 / n + 2.25 / n ** 2)
+    out["ad"] = a2
+    out["ad_p"] = _ad_p(a2s)
+    if n <= 5000:
+        w, p = stats.shapiro(x)
+        out["sw"], out["sw_p"] = float(w), float(p)
+    out["normal"] = bool(out["ad_p"] >= alpha)
+    if n > 2:
+        out["skew"] = float(stats.skew(x, bias=False))
+    if n > 3:
+        out["kurt"] = float(stats.kurtosis(x, bias=False))
+    return out
+
+
+def _cp_ci(cp, nn, alpha):
+    if cp is None or nn < 3:
+        return None
+    lo = cp * math.sqrt(stats.chi2.ppf(alpha / 2, nn - 1) / (nn - 1))
+    hi = cp * math.sqrt(stats.chi2.ppf(1 - alpha / 2, nn - 1) / (nn - 1))
+    return [lo, hi]
+
+
+def _cpk_ci(cpk, nn, alpha):
+    if cpk is None or nn < 3:
+        return None
+    z = stats.norm.ppf(1 - alpha / 2)
+    hw = z * math.sqrt(1.0 / (9.0 * nn) + cpk ** 2 / (2.0 * (nn - 1)))
+    return [cpk - hw, cpk + hw]
+
+
+def _zbench(p):
+    return float(stats.norm.isf(min(max(p, 1e-300), 1 - 1e-16)))
+
+
+def _exp_ppm(mean, sd, lsl, usl):
+    lo = float(stats.norm.cdf((lsl - mean) / sd)) if lsl is not None else 0.0
+    hi = float(stats.norm.sf((usl - mean) / sd)) if usl is not None else 0.0
+    p = lo + hi
+    return {"ppm_lo": lo * 1e6, "ppm_hi": hi * 1e6, "ppm": p * 1e6, "z": _zbench(p)}
+
+
+def _rules(z, enabled):
+    """Testes de causas especiais (Nelson) sobre escores z relativos à linha central."""
+    z = np.asarray(z, float)
+    n = len(z)
+    flags = {r: [] for r in enabled}
+    for i in range(n):
+        if 1 in flags and abs(z[i]) > 3:
+            flags[1].append(i)
+        if 2 in flags and i >= 8:
+            w = z[i - 8:i + 1]
+            if np.all(w > 0) or np.all(w < 0):
+                flags[2].append(i)
+        if 3 in flags and i >= 5:
+            d = np.diff(z[i - 5:i + 1])
+            if np.all(d > 0) or np.all(d < 0):
+                flags[3].append(i)
+        if 4 in flags and i >= 13:
+            d = np.diff(z[i - 13:i + 1])
+            if np.all(d[:-1] * d[1:] < 0):
+                flags[4].append(i)
+        if 5 in flags and i >= 2:
+            w = z[i - 2:i + 1]
+            if (np.sum(w > 2) >= 2 and z[i] > 2) or (np.sum(w < -2) >= 2 and z[i] < -2):
+                flags[5].append(i)
+        if 6 in flags and i >= 4:
+            w = z[i - 4:i + 1]
+            if (np.sum(w > 1) >= 4 and z[i] > 1) or (np.sum(w < -1) >= 4 and z[i] < -1):
+                flags[6].append(i)
+        if 7 in flags and i >= 14:
+            if np.all(np.abs(z[i - 14:i + 1]) < 1):
+                flags[7].append(i)
+        if 8 in flags and i >= 7:
+            if np.all(np.abs(z[i - 7:i + 1]) > 1):
+                flags[8].append(i)
+    return flags
+
+
+def _stability(x):
+    x = np.asarray(x, float)
+    if len(x) < 3:
+        return {"stable": None, "out3": 0, "run9": 0, "mr_out": 0}
+    mr = np.abs(np.diff(x))
+    mrbar = mr.mean()
+    if mrbar == 0:
+        return {"stable": None, "out3": 0, "run9": 0, "mr_out": 0}
+    sig = mrbar / 1.128
+    z = (x - x.mean()) / sig
+    f = _rules(z, [1, 2])
+    mr_out = int(np.sum(mr > 3.267 * mrbar))
+    st = (len(f[1]) + len(f[2]) + mr_out) == 0
+    return {"stable": bool(st), "out3": len(f[1]), "run9": len(f[2]), "mr_out": mr_out}
+
+
+# ---------------------------------------------------------------- carga de dados
+@_tool
+def py_load(a):
+    global DF, COLTYPES
+    cols, types, data = a["columns"], a["types"], a["data"]
+    d = {}
+    for c in cols:
+        v = pd.Series(data[c], dtype="object")
+        t = types.get(c)
+        if t in ("numeric", "id"):
+            d[c] = pd.to_numeric(v, errors="coerce")
+        elif t == "datetime":
+            d[c] = pd.to_datetime(v, errors="coerce")
+        else:
+            d[c] = v
+    DF = pd.DataFrame(d, columns=cols)
+    COLTYPES = dict(types)
+    return {"ok": True, "rows": int(len(DF))}
+
+
+# ---------------------------------------------------------------- EDA
+@_tool
+def py_eda(a):
+    coerced = a.get("coerced") or {}
+    n, m = DF.shape
+    if n == 0:
+        raise UserError("Carregue os dados primeiro.")
+    alerts, summary = [], []
+    counts = {"numeric": 0, "categorical": 0, "datetime": 0, "id": 0}
+    tot_miss = int(DF.isna().sum().sum())
+    dup = int(DF.duplicated().sum())
+    for c in DF.columns:
+        s = DF[c]
+        t = COLTYPES.get(c, "categorical")
+        counts[t] = counts.get(t, 0) + 1
+        miss = int(s.isna().sum())
+        uniq = int(s.nunique(dropna=True))
+        row = {"col": c, "type": t, "missing": miss, "pct_missing": 100.0 * miss / n, "unique": uniq,
+               "coerced": int(coerced.get(c, 0)), "min": None, "mean": None, "max": None, "outliers": None}
+        if t == "numeric":
+            x = s.dropna().astype(float)
+            if len(x):
+                row["min"], row["mean"], row["max"] = float(x.min()), float(x.mean()), float(x.max())
+                if len(x) >= 4:
+                    q1, q3 = np.percentile(x, [25, 75])
+                    i = q3 - q1
+                    row["outliers"] = int(((x < q1 - 1.5 * i) | (x > q3 + 1.5 * i)).sum())
+                    if row["outliers"] / len(x) > 0.05:
+                        alerts.append({"level": "warn", "text": "«%s»: %d valores fora das cercas do boxplot (%s%%) — investigue antes de calcular capabilidade."
+                                       % (c, row["outliers"], _f(100.0 * row["outliers"] / len(x)))})
+        if miss / n > 0.05:
+            alerts.append({"level": "warn", "text": "«%s»: %s%% de valores ausentes." % (c, _f(100.0 * miss / n))})
+        if uniq <= 1:
+            alerts.append({"level": "warn", "text": "«%s» é constante (sem variação) — não serve para análise de capabilidade." % c})
+        if row["coerced"] > 0:
+            alerts.append({"level": "bad", "text": "«%s»: %d valores não numéricos foram ignorados na conversão para número." % (c, row["coerced"])})
+        summary.append(row)
+    if dup:
+        alerts.append({"level": "warn", "text": "%d linhas duplicadas (%s%%)." % (dup, _f(100.0 * dup / n))})
+    if n < 30:
+        alerts.append({"level": "warn", "text": "Somente %d registros: amostra pequena para estimar capabilidade (recomendado ≥ 100)." % n})
+    return {"rows": n, "cols": m, "counts": counts, "missing": tot_miss, "duplicates": dup,
+            "pct_missing": 100.0 * tot_miss / (n * m) if n * m else 0, "summary": summary, "alerts": alerts}
+
+
+# ---------------------------------------------------------------- descritiva
+def _box(x):
+    x = np.sort(np.asarray(x, float))
+    q1, med, q3 = np.percentile(x, [25, 50, 75])
+    iqr = q3 - q1
+    lo_f, hi_f = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+    inside = x[(x >= lo_f) & (x <= hi_f)]
+    out = x[(x < lo_f) | (x > hi_f)]
+    return {"q1": float(q1), "med": float(med), "q3": float(q3),
+            "lw": float(inside.min()) if len(inside) else float(q1),
+            "uw": float(inside.max()) if len(inside) else float(q3),
+            "out": [float(v) for v in out[:150]], "n_out": int(len(out))}
+
+
+def _desc_block(s, perc, alpha):
+    x = np.sort(np.asarray(s, float))
+    n = len(x)
+    mean = float(x.mean())
+    sd = float(x.std(ddof=1)) if n > 1 else 0.0
+    se = sd / math.sqrt(n) if n > 1 else 0.0
+    ci_mean = ci_sd = ci_med = None
+    if n > 1:
+        t = stats.t.ppf(1 - alpha / 2, n - 1)
+        ci_mean = [mean - t * se, mean + t * se]
+        ci_sd = [math.sqrt((n - 1) * sd ** 2 / stats.chi2.ppf(1 - alpha / 2, n - 1)),
+                 math.sqrt((n - 1) * sd ** 2 / stats.chi2.ppf(alpha / 2, n - 1))]
+        k = int(stats.binom.ppf(alpha / 2, n, 0.5))
+        ci_med = [float(x[max(k - 1, 0)]), float(x[min(n - k, n - 1)])]
+    q1, med, q3 = [float(v) for v in np.percentile(x, [25, 50, 75])]
+    mode = None
+    if n and len(np.unique(x)) / n < 0.5:
+        mode = float(pd.Series(x).mode().iloc[0])
+    return {
+        "n": n, "mean": mean, "median": med, "mode": mode, "std": sd, "var": sd ** 2, "sem": se,
+        "cv": (sd / abs(mean) * 100.0) if mean != 0 else None,
+        "min": float(x[0]), "max": float(x[-1]), "range": float(x[-1] - x[0]),
+        "q1": q1, "q3": q3, "iqr": q3 - q1, "p_custom": float(np.percentile(x, perc)),
+        "skew": float(stats.skew(x, bias=False)) if n > 2 else None,
+        "kurt": float(stats.kurtosis(x, bias=False)) if n > 3 else None,
+        "ci_mean": ci_mean, "ci_sd": ci_sd, "ci_median": ci_med, "box": _box(x),
+    }
+
+
+@_tool
+def py_desc(a):
+    col = a["col"]
+    perc = float(a.get("perc") or 90)
+    alpha = float(a.get("alpha") or 0.05)
+    group = a.get("group") or None
+    s = _series(col)
+    if len(s) == 0:
+        raise UserError("Nenhum dado numérico válido na coluna.")
+    ov = _desc_block(s.values, perc, alpha)
+    ov["missing"] = int(len(DF) - len(s))
+    out = {"perc": perc, "alpha": alpha, "overall": ov, "normality": _normality(s.values, alpha), "groups": []}
+    if group:
+        _need(group)
+        tmp = pd.DataFrame({"g": _cat(DF[group]), "x": pd.to_numeric(DF[col], errors="coerce")}).dropna()
+        levels = sorted(tmp["g"].unique(), key=_nat)
+        if len(levels) > 30:
+            raise UserError("A variável de agrupamento tem %d níveis (máximo 30)." % len(levels))
+        for lv in levels:
+            sub = tmp.loc[tmp["g"] == lv, "x"].values
+            blk = _desc_block(sub, perc, alpha)
+            blk["name"] = lv
+            out["groups"].append(blk)
+    return out
+
+
+# ---------------------------------------------------------------- histograma / normalidade
+@_tool
+def py_hist(a):
+    alpha = float(a.get("alpha") or 0.05)
+    x = _series(a["col"]).values
+    n = len(x)
+    if n < 3:
+        raise UserError("Dados insuficientes (mínimo 3 valores).")
+    edges, counts, centers, w = _hist(x, a.get("bins"))
+    mu, sd = float(x.mean()), float(x.std(ddof=1))
+    return {"n": n, "mean": mu, "std": sd, "edges": edges, "counts": counts, "centers": centers, "width": w,
+            "curve": _curve(mu, sd, n, w, edges[0], edges[-1]) if sd > 0 else [],
+            "normality": _normality(x, alpha), "nbins": int(len(counts))}
+
+
+@_tool
+def py_normal(a):
+    alpha = float(a.get("alpha") or 0.05)
+    x = _series(a["col"]).values
+    n = len(x)
+    if n < 3:
+        raise UserError("Dados insuficientes (mínimo 3 valores).")
+    if np.std(x, ddof=1) == 0:
+        raise UserError("A variável é constante; o teste de normalidade não se aplica.")
+    (osm, osr), (slope, intercept, r) = stats.probplot(x, dist="norm")
+    step = max(1, n // 1500)
+    pts = [[float(p), float(q)] for p, q in zip(osm[::step], osr[::step])]
+    line = [[float(osm[0]), float(slope * osm[0] + intercept)], [float(osm[-1]), float(slope * osm[-1] + intercept)]]
+    res = _normality(x, alpha)
+    res.update({"points": pts, "line": line, "r2": float(r ** 2), "mean": float(x.mean()), "std": float(x.std(ddof=1)),
+                "alpha": alpha})
+    return res
+
+
+# ---------------------------------------------------------------- capabilidade (normal)
+def _within_sigma(x, sg):
+    n = len(x)
+    if sg <= 1:
+        if n < 2:
+            raise UserError("Dados insuficientes.")
+        mr = np.abs(np.diff(x))
+        return float(mr.mean() / 1.128), max(1.0, 0.62 * (n - 1)), "MR̄/d2 (amplitude móvel, span 2)"
+    k = n // sg
+    if k < 2:
+        raise UserError("Dados insuficientes para o tamanho de subgrupo informado (mínimo 2 subgrupos completos).")
+    xs = x[:k * sg].reshape(k, sg)
+    s2 = xs.var(axis=1, ddof=1)
+    d = k * (sg - 1)
+    return float(math.sqrt(s2.mean()) / c4(d + 1)), float(d), "Desvio padrão combinado (subgrupos de %d)" % sg
+
+
+def _idx(mean, sd, lsl, usl):
+    cpu = (usl - mean) / (3 * sd) if usl is not None else None
+    cpl = (mean - lsl) / (3 * sd) if lsl is not None else None
+    cp = (usl - lsl) / (6 * sd) if (usl is not None and lsl is not None) else None
+    cpk = min(v for v in (cpu, cpl) if v is not None)
+    return {"cp": cp, "cpu": cpu, "cpl": cpl, "cpk": cpk}
+
+
+def _check_specs(lsl, usl):
+    if lsl is None and usl is None:
+        raise UserError("Informe ao menos um limite de especificação (LIE e/ou LSE).")
+    if lsl is not None and usl is not None and lsl >= usl:
+        raise UserError("O LIE deve ser menor que o LSE.")
+
+
+@_tool
+def py_cap(a):
+    col, order = a["col"], a.get("order") or None
+    lsl, usl, target = _opt(a, "lsl"), _opt(a, "usl"), _opt(a, "target")
+    sg = int(a.get("subgroup") or 1)
+    alpha = float(a.get("alpha") or 0.05)
+    shift = float(a.get("shift") if a.get("shift") is not None else 1.5)
+    _check_specs(lsl, usl)
+    s = _series(col, order)
+    x = s.values.astype(float)
+    n = len(x)
+    if n < 2:
+        raise UserError("Dados insuficientes (mínimo 2 valores).")
+    mean, sd_o = float(x.mean()), float(x.std(ddof=1))
+    if sd_o == 0:
+        raise UserError("A variável não apresenta variação (desvio padrão = 0).")
+    sd_w, df_w, method = _within_sigma(x, sg)
+    if sd_w <= 0:
+        sd_w = sd_o
+    w = _idx(mean, sd_w, lsl, usl)
+    o = _idx(mean, sd_o, lsl, usl)
+    ov = {"pp": o["cp"], "ppu": o["cpu"], "ppl": o["cpl"], "ppk": o["cpk"]}
+    w["cp_ci"] = _cp_ci(w["cp"], df_w + 1, alpha)
+    w["cpk_ci"] = _cpk_ci(w["cpk"], df_w + 1, alpha)
+    ov["pp_ci"] = _cp_ci(ov["pp"], n, alpha)
+    ov["ppk_ci"] = _cpk_ci(ov["ppk"], n, alpha)
+    cpm = None
+    if target is not None and lsl is not None and usl is not None:
+        cpm = (usl - lsl) / (6 * math.sqrt(sd_o ** 2 + (mean - target) ** 2))
+    below = int((x < lsl).sum()) if lsl is not None else 0
+    above = int((x > usl).sum()) if usl is not None else 0
+    obs = {"below": below, "above": above, "total": below + above, "ppm": (below + above) / n * 1e6,
+           "ppm_lo": below / n * 1e6, "ppm_hi": above / n * 1e6}
+    ew, eo = _exp_ppm(mean, sd_w, lsl, usl), _exp_ppm(mean, sd_o, lsl, usl)
+    norm = _normality(x, alpha)
+    stab = _stability(x)
+    warns = []
+    if n < 100 and sg <= 1:
+        warns.append({"level": "warn", "text": "Amostra pequena (n = %d < 100): os índices têm alta incerteza — considere os intervalos de confiança." % n})
+    if sg > 1 and n // sg < 25:
+        warns.append({"level": "warn", "text": "Apenas %d subgrupos (recomendado ≥ 25) para estimar a variação dentro dos subgrupos." % (n // sg)})
+    if norm["normal"] is False:
+        warns.append({"level": "bad", "text": "Dados não normais (Anderson-Darling p = %s): Cp/Cpk/Pp/Ppk e PPM esperado assumem normalidade — use a Capabilidade Não Normal." % _f(norm["ad_p"], 4)})
+    if stab["stable"] is False:
+        warns.append({"level": "bad", "text": "Sinais de instabilidade (pontos > 3σ: %d; sequências de 9: %d; amplitudes móveis fora do limite: %d). Capabilidade só é válida para processo estável — verifique a Carta de Controle." % (stab["out3"], stab["run9"], stab["mr_out"])})
+    if not order:
+        warns.append({"level": "info", "text": "Sem coluna de ordem/tempo: a variação «within» assume que as linhas estão em ordem cronológica."})
+    if lsl is not None and mean < lsl or usl is not None and mean > usl:
+        warns.append({"level": "bad", "text": "A média está fora dos limites de especificação."})
+    edges, counts, centers, wbin = _hist(x, None, extra=(lsl, usl, target))
+    hist = {"edges": edges, "counts": counts, "centers": centers, "width": wbin,
+            "curve_overall": _curve(mean, sd_o, n, wbin, edges[0], edges[-1]),
+            "curve_within": _curve(mean, sd_w, n, wbin, edges[0], edges[-1])}
+    return {"n": n, "mean": mean, "sd_within": sd_w, "sd_overall": sd_o, "method_within": method,
+            "lsl": lsl, "usl": usl, "target": target, "within": w, "overall": ov, "cpm": cpm, "obs": obs,
+            "exp_within": ew, "exp_overall": eo, "z_bench_within": ew["z"], "z_bench_overall": eo["z"],
+            "sigma_level": eo["z"] + shift, "shift": shift, "normality": norm, "stability": stab,
+            "warnings": warns, "hist": hist, "alpha": alpha, "subgroup": sg}
+
+
+# ---------------------------------------------------------------- capabilidade não normal
+_DISTS = {
+    "normal": ("Normal (referência)", stats.norm, False, 2),
+    "weibull": ("Weibull (2 parâmetros)", stats.weibull_min, True, 2),
+    "lognorm": ("Lognormal (2 parâmetros)", stats.lognorm, True, 2),
+    "gamma": ("Gamma (2 parâmetros)", stats.gamma, True, 2),
+    "johnsonsu": ("Johnson SU (4 parâmetros)", stats.johnsonsu, False, 4),
+}
+
+
+def _fit_dist(key, x):
+    label, dist, positive, k = _DISTS[key]
+    if positive and x.min() <= 0:
+        return None
+    try:
+        if key == "normal":
+            params = dist.fit(x)
+        elif positive:
+            params = dist.fit(x, floc=0)
+        else:
+            params = dist.fit(x)
+        ll = float(np.sum(dist.logpdf(x, *params)))
+        if not math.isfinite(ll):
+            return None
+        ks = stats.kstest(x, dist.cdf, args=params)
+        return {"key": key, "label": label, "dist": dist, "params": params, "aic": 2 * k - 2 * ll,
+                "ks_d": float(ks.statistic), "ks_p": float(ks.pvalue)}
+    except Exception:
+        return None
+
+
+@_tool
+def py_capnn(a):
+    col, order = a["col"], a.get("order") or None
+    lsl, usl = _opt(a, "lsl"), _opt(a, "usl")
+    method = a.get("method") or "auto"
+    alpha = float(a.get("alpha") or 0.05)
+    shift = float(a.get("shift") if a.get("shift") is not None else 1.5)
+    _check_specs(lsl, usl)
+    x = _series(col, order).values.astype(float)
+    n = len(x)
+    if n < 20:
+        raise UserError("Capabilidade não normal requer ao menos 20 observações (recomendado ≥ 100).")
+    if np.std(x, ddof=1) == 0:
+        raise UserError("A variável não apresenta variação.")
+    warns = []
+    if n < 100:
+        warns.append({"level": "warn", "text": "Amostra pequena (n = %d): o ajuste da distribuição é incerto." % n})
+    norm = _normality(x, alpha)
+    edges, counts, centers, wbin = _hist(x, None, extra=(lsl, usl))
+    res = {"n": n, "mean": float(x.mean()), "median": float(np.median(x)), "normality": norm, "lsl": lsl, "usl": usl,
+           "shift": shift, "alpha": alpha, "warnings": warns, "candidates": []}
+    below = int((x < lsl).sum()) if lsl is not None else 0
+    above = int((x > usl).sum()) if usl is not None else 0
+    res["obs"] = {"below": below, "above": above, "total": below + above, "ppm": (below + above) / n * 1e6}
+    if method == "boxcox":
+        if x.min() <= 0:
+            raise UserError("Box-Cox exige valores positivos. Escolha uma distribuição ajustada (Johnson SU, por exemplo).")
+        for L in (lsl, usl):
+            if L is not None and L <= 0:
+                raise UserError("Com Box-Cox os limites de especificação devem ser positivos.")
+        y, lam = stats.boxcox(x)
+        lam = float(lam)
+
+        def T(v):
+            return math.log(v) if abs(lam) < 1e-9 else (v ** lam - 1.0) / lam
+        lt = T(lsl) if lsl is not None else None
+        ut = T(usl) if usl is not None else None
+        mu, sd = float(y.mean()), float(y.std(ddof=1))
+        sdw = float(np.abs(np.diff(y)).mean() / 1.128)
+        o = _idx(mu, sd, lt, ut)
+        w = _idx(mu, sdw, lt, ut) if sdw > 0 else None
+        ex = _exp_ppm(mu, sd, lt, ut)
+        xs = np.linspace(edges[0], edges[-1], 120)
+        xs = xs[xs > 0]
+        ty = np.array([T(float(v)) for v in xs])
+        ys = len(x) * wbin * stats.norm.pdf(ty, mu, sd) * xs ** (lam - 1.0)
+        res.update({"method": "boxcox", "method_label": "Transformação Box-Cox (λ = %s)" % _f(lam, 4), "lambda": lam,
+                    "transformed_normality": _normality(y, alpha),
+                    "pp": o["cp"], "ppk": o["cpk"], "ppu": o["cpu"], "ppl": o["cpl"],
+                    "cp": w["cp"] if w else None, "cpk": w["cpk"] if w else None,
+                    "exp": ex, "curve": [[float(p), float(q)] for p, q in zip(xs, ys)],
+                    "spec_t": [lt, ut]})
+    else:
+        keys = [method] if method != "auto" else ["normal", "weibull", "lognorm", "gamma"] + (["johnsonsu"] if n <= 2000 else [])
+        fits = [f for f in (_fit_dist(k, x) for k in keys) if f is not None]
+        if not fits:
+            raise UserError("Não foi possível ajustar a distribuição escolhida a estes dados (verifique valores ≤ 0 para Weibull/Lognormal/Gamma).")
+        best = min(fits, key=lambda f: f["aic"])
+        d, p = best["dist"], best["params"]
+        xlo, xmed, xhi = float(d.ppf(0.00135, *p)), float(d.ppf(0.5, *p)), float(d.ppf(0.99865, *p))
+        pp = ppk = ppu = ppl = None
+        if lsl is not None and usl is not None:
+            pp = (usl - lsl) / (xhi - xlo)
+        if usl is not None:
+            ppu = (usl - xmed) / (xhi - xmed)
+        if lsl is not None:
+            ppl = (xmed - lsl) / (xmed - xlo)
+        ppk = min(v for v in (ppu, ppl) if v is not None)
+        plo = float(d.cdf(lsl, *p)) if lsl is not None else 0.0
+        phi = float(d.sf(usl, *p)) if usl is not None else 0.0
+        xs = np.linspace(edges[0], edges[-1], 120)
+        ys = n * wbin * d.pdf(xs, *p)
+        res.update({"method": best["key"], "method_label": best["label"] + (" — melhor AIC" if method == "auto" else ""),
+                    "pp": pp, "ppk": ppk, "ppu": ppu, "ppl": ppl, "cp": None, "cpk": None,
+                    "pctl": {"lo": xlo, "med": xmed, "hi": xhi},
+                    "exp": {"ppm_lo": plo * 1e6, "ppm_hi": phi * 1e6, "ppm": (plo + phi) * 1e6, "z": _zbench(plo + phi)},
+                    "curve": [[float(u), float(v)] for u, v in zip(xs, ys)]})
+        res["candidates"] = [{"label": f["label"], "aic": f["aic"], "ks_d": f["ks_d"], "ks_p": f["ks_p"],
+                              "params": [float(v) for v in f["params"]], "used": f is best} for f in sorted(fits, key=lambda f: f["aic"])]
+    res["sigma_level"] = res["exp"]["z"] + shift
+    res["hist"] = {"edges": edges, "counts": counts, "centers": centers, "width": wbin}
+    return res
+
+
+# ---------------------------------------------------------------- cartas de controle
+def _viol_list(flags, values, labels, rows):
+    out = []
+    for r, idxs in flags.items():
+        for i in idxs:
+            out.append({"obs": int(i) + 1, "label": labels[i], "row": rows[i], "rule": int(r), "value": float(values[i])})
+    out.sort(key=lambda d: (d["obs"], d["rule"]))
+    return out
+
+
+@_tool
+def py_ctrl(a):
+    kind = a.get("chart") or "imr"
+    col, order = a["col"], a.get("order") or None
+    rules = [int(r) for r in (a.get("rules") or [1, 2, 5])]
+    sub = int(a.get("subgroup") or 5)
+    s = _series(col, order)
+    x = s.values.astype(float)
+    labels_all = _labels(s.index, order)
+    rows_all = [int(i) + 1 for i in s.index]
+    n = len(x)
+    res = {"chart": kind, "chart2": None, "params": {}}
+    if kind == "imr":
+        if n < 5:
+            raise UserError("Dados insuficientes (mínimo 5 observações).")
+        mr = np.abs(np.diff(x))
+        mrbar = float(mr.mean())
+        cl = float(x.mean())
+        sig = mrbar / 1.128
+        if sig == 0:
+            raise UserError("Amplitude móvel média igual a zero: os dados não variam.")
+        values, labels, rows = x, labels_all, rows_all
+        sigs = np.full(n, sig)
+        cls = np.full(n, cl)
+        ucl, lcl = cls + 3 * sigs, cls - 3 * sigs
+        f2 = {1: [i for i, v in enumerate(mr) if v > 3.267 * mrbar]}
+        res["chart2"] = {"title": "Amplitude Móvel (MR)", "labels": labels_all[1:], "values": mr, "cl": np.full(n - 1, mrbar),
+                         "ucl": np.full(n - 1, 3.267 * mrbar), "lcl": np.zeros(n - 1),
+                         "flags": [int(i) for i in f2[1]]}
+        res["params"] = {"CL": cl, "σ estimado (MR̄/1,128)": sig, "MR̄": mrbar}
+        ylabel = "Valor individual"
+        viol2 = [{"obs": int(i) + 2, "label": labels_all[i + 1], "row": rows_all[i + 1], "rule": 1, "value": float(mr[i]), "chart": "MR"} for i in f2[1]]
+    elif kind in ("xbarr", "xbars"):
+        if not (2 <= sub <= 25):
+            raise UserError("O tamanho do subgrupo deve estar entre 2 e 25.")
+        k = n // sub
+        if k < 2:
+            raise UserError("Dados insuficientes para o tamanho de subgrupo informado.")
+        g = x[:k * sub].reshape(k, sub)
+        means = g.mean(axis=1)
+        cl = float(means.mean())
+        first_labels = [labels_all[i * sub] for i in range(k)]
+        first_rows = [rows_all[i * sub] for i in range(k)]
+        if kind == "xbarr":
+            rng = g.max(axis=1) - g.min(axis=1)
+            rbar = float(rng.mean())
+            sig_x = rbar / (d2(sub) * math.sqrt(sub))
+            D4 = 1 + 3 * d3(sub) / d2(sub)
+            D3 = max(0.0, 1 - 3 * d3(sub) / d2(sub))
+            v2, cl2, name2 = rng, rbar, "Amplitude (R)"
+            u2, l2 = D4 * rbar, D3 * rbar
+            res["params"] = {"CL (X̄̄)": cl, "R̄": rbar, "σ do subgrupo estimado": sig_x * math.sqrt(sub)}
+        else:
+            sd = g.std(axis=1, ddof=1)
+            sbar = float(sd.mean())
+            c = c4(sub)
+            sig_x = sbar / (c * math.sqrt(sub))
+            B4 = 1 + 3 * math.sqrt(1 - c * c) / c
+            B3 = max(0.0, 1 - 3 * math.sqrt(1 - c * c) / c)
+            v2, cl2, name2 = sd, sbar, "Desvio padrão (S)"
+            u2, l2 = B4 * sbar, B3 * sbar
+            res["params"] = {"CL (X̄̄)": cl, "S̄": sbar, "σ do subgrupo estimado": sig_x * math.sqrt(sub)}
+        if sig_x == 0:
+            raise UserError("Variação dentro dos subgrupos igual a zero.")
+        values, labels, rows = means, first_labels, first_rows
+        sigs = np.full(k, sig_x)
+        cls = np.full(k, cl)
+        ucl, lcl = cls + 3 * sigs, cls - 3 * sigs
+        f2 = [int(i) for i in range(k) if v2[i] > u2 or v2[i] < l2]
+        res["chart2"] = {"title": name2, "labels": first_labels, "values": v2, "cl": np.full(k, cl2), "ucl": np.full(k, u2),
+                         "lcl": np.full(k, l2), "flags": f2}
+        ylabel = "Média do subgrupo (X̄)"
+        viol2 = [{"obs": i + 1, "label": first_labels[i], "row": first_rows[i], "rule": 1, "value": float(v2[i]), "chart": name2} for i in f2]
+        res["params"]["Tamanho do subgrupo"] = sub
+    elif kind in ("p", "np", "c", "u"):
+        cnt = x
+        size_col, size_const = a.get("size_col") or None, _opt(a, "size_const")
+        if kind in ("p", "np", "u"):
+            if size_col:
+                sz = pd.to_numeric(DF[size_col], errors="coerce").loc[s.index].values.astype(float)
+                if np.isnan(sz).any():
+                    raise UserError("A coluna de tamanho da amostra possui valores ausentes/não numéricos.")
+            elif size_const:
+                sz = np.full(n, size_const)
+            else:
+                raise UserError("Informe a coluna de tamanho da amostra ou um tamanho constante.")
+            if (sz <= 0).any():
+                raise UserError("Tamanhos de amostra devem ser positivos.")
+        if kind == "p":
+            if (cnt > sz).any():
+                raise UserError("Há contagens de defeituosos maiores que o tamanho da amostra.")
+            pbar = cnt.sum() / sz.sum()
+            values = cnt / sz
+            cls = np.full(n, pbar)
+            sigs = np.sqrt(pbar * (1 - pbar) / sz)
+            ucl, lcl = np.minimum(1, cls + 3 * sigs), np.maximum(0, cls - 3 * sigs)
+            res["params"] = {"p̄": float(pbar)}
+            ylabel = "Proporção de defeituosos (p)"
+        elif kind == "np":
+            if len(np.unique(sz)) > 1:
+                raise UserError("A carta NP exige tamanho de amostra constante — use a carta P.")
+            pbar = cnt.sum() / sz.sum()
+            values = cnt
+            cls = np.full(n, pbar * sz[0])
+            sigs = np.full(n, math.sqrt(sz[0] * pbar * (1 - pbar)))
+            ucl, lcl = cls + 3 * sigs, np.maximum(0, cls - 3 * sigs)
+            res["params"] = {"n p̄": float(cls[0]), "p̄": float(pbar)}
+            ylabel = "Nº de defeituosos (np)"
+        elif kind == "c":
+            cbar = cnt.mean()
+            values = cnt
+            cls = np.full(n, cbar)
+            sigs = np.full(n, math.sqrt(cbar))
+            ucl, lcl = cls + 3 * sigs, np.maximum(0, cls - 3 * sigs)
+            res["params"] = {"c̄": float(cbar)}
+            ylabel = "Nº de defeitos (c)"
+        else:
+            ubar = cnt.sum() / sz.sum()
+            values = cnt / sz
+            cls = np.full(n, ubar)
+            sigs = np.sqrt(ubar / sz)
+            ucl, lcl = cls + 3 * sigs, np.maximum(0, cls - 3 * sigs)
+            res["params"] = {"ū": float(ubar)}
+            ylabel = "Defeitos por unidade (u)"
+        if np.any(sigs == 0):
+            raise UserError("Variação nula: a carta não pode ser construída com estes dados.")
+        labels, rows = labels_all, rows_all
+        viol2 = []
+    else:
+        raise UserError("Tipo de carta desconhecido.")
+    z = (np.asarray(values, float) - cls) / sigs
+    flags = _rules(z, rules)
+    viol = _viol_list(flags, values, labels, rows)
+    for v in viol:
+        v["chart"] = "Principal"
+    viol = viol + viol2
+    flagged = sorted({i for idxs in flags.values() for i in idxs})
+    res.update({"labels": labels, "values": values, "cl": cls, "ucl": ucl, "lcl": lcl, "ylabel": ylabel,
+                "sig": {"u1": cls + sigs, "l1": cls - sigs, "u2": cls + 2 * sigs, "l2": cls - 2 * sigs},
+                "flagged": flagged, "by_rule": {str(r): len(v) for r, v in flags.items()}, "violations": viol[:300],
+                "n_violations": len(viol), "k": int(len(values)), "rules": rules, "stable": len(viol) == 0,
+                "varying": bool(len(np.unique(np.round(ucl, 10))) > 1)})
+    return res
+
+
+# ---------------------------------------------------------------- run chart
+@_tool
+def py_run(a):
+    col, order = a["col"], a.get("order") or None
+    alpha = float(a.get("alpha") or 0.05)
+    s = _series(col, order)
+    x = s.values.astype(float)
+    n = len(x)
+    if n < 10:
+        raise UserError("Run chart requer ao menos 10 observações.")
+    med = float(np.median(x))
+    res = {"n": n, "median": med, "mean": float(x.mean()), "values": x, "labels": _labels(s.index, order), "alpha": alpha}
+    d = x[x != med]
+    sign = d > med
+    n1, n2 = int(sign.sum()), int((~sign).sum())
+    res["about_median"] = None
+    if n1 > 0 and n2 > 0:
+        obs = 1 + int(np.sum(sign[1:] != sign[:-1]))
+        N = n1 + n2
+        E = 1 + 2.0 * n1 * n2 / N
+        V = 2.0 * n1 * n2 * (2.0 * n1 * n2 - N) / (N * N * (N - 1.0))
+        zz = (obs - E) / math.sqrt(V) if V > 0 else 0.0
+        res["about_median"] = {"runs": obs, "expected": E, "n_above": n1, "n_below": n2, "z": zz,
+                               "p_cluster": float(stats.norm.cdf(zz)), "p_mix": float(stats.norm.sf(zz))}
+    dd = np.diff(x)
+    dd = dd[dd != 0]
+    res["up_down"] = None
+    if len(dd) >= 3:
+        sg = dd > 0
+        obs = 1 + int(np.sum(sg[1:] != sg[:-1]))
+        N = len(dd) + 1
+        E = (2.0 * N - 1.0) / 3.0
+        V = (16.0 * N - 29.0) / 90.0
+        zz = (obs - E) / math.sqrt(V)
+        res["up_down"] = {"runs": obs, "expected": E, "z": zz, "p_trend": float(stats.norm.cdf(zz)), "p_osc": float(stats.norm.sf(zz))}
+    if np.std(x) > 0:
+        tau, p = stats.kendalltau(np.arange(n), x)
+        res["kendall"] = {"tau": float(tau), "p": float(p)}
+    else:
+        res["kendall"] = None
+    return res
+
+
+# ---------------------------------------------------------------- outliers
+def _grubbs(x, alpha):
+    cur, idx, found = x.copy(), np.arange(len(x)), []
+    while len(cur) >= 3 and len(found) < max(1, len(x) // 5):
+        m, s = cur.mean(), cur.std(ddof=1)
+        if s == 0:
+            break
+        k = int(np.argmax(np.abs(cur - m)))
+        G = abs(cur[k] - m) / s
+        nn = len(cur)
+        t = stats.t.ppf(1 - alpha / (2 * nn), nn - 2)
+        Gc = (nn - 1) / math.sqrt(nn) * math.sqrt(t * t / (nn - 2 + t * t))
+        if G > Gc:
+            found.append(int(idx[k]))
+            cur, idx = np.delete(cur, k), np.delete(idx, k)
+        else:
+            break
+    return found
+
+
+@_tool
+def py_outl(a):
+    col = a["col"]
+    kiqr = float(a.get("kiqr") or 1.5)
+    khamp = float(a.get("khamp") or 3.0)
+    alpha = float(a.get("alpha") or 0.05)
+    s = _series(col)
+    x = s.values.astype(float)
+    n = len(x)
+    if n < 5:
+        raise UserError("Dados insuficientes (mínimo 5 observações).")
+    q1, q3 = np.percentile(x, [25, 75])
+    iqr = q3 - q1
+    lo, hi = q1 - kiqr * iqr, q3 + kiqr * iqr
+    f_iqr = [int(i) for i in np.where((x < lo) | (x > hi))[0]]
+    med = float(np.median(x))
+    mad = float(np.median(np.abs(x - med)) * 1.4826)
+    f_ham, hlo, hhi = [], None, None
+    if mad > 0:
+        hlo, hhi = med - khamp * mad, med + khamp * mad
+        f_ham = [int(i) for i in np.where((x < hlo) | (x > hhi))[0]]
+    f_gr = _grubbs(x, alpha)
+    rows = [int(i) + 1 for i in s.index]
+    methods = {"iqr": set(f_iqr), "hampel": set(f_ham), "grubbs": set(f_gr)}
+    allf = sorted(set(f_iqr) | set(f_ham) | set(f_gr))
+    table = [{"row": rows[i], "value": float(x[i]), "iqr": i in methods["iqr"], "hampel": i in methods["hampel"],
+              "grubbs": i in methods["grubbs"]} for i in allf]
+    return {"n": n, "mean": float(x.mean()), "median": med, "values": x, "rows": rows,
+            "iqr": {"lo": lo, "hi": hi, "k": kiqr, "n": len(f_iqr)},
+            "hampel": {"lo": hlo, "hi": hhi, "k": khamp, "n": len(f_ham), "mad": mad},
+            "grubbs": {"n": len(f_gr), "alpha": alpha}, "flagged": allf, "table": table[:200],
+            "normality": _normality(x, alpha)}
+
+
+# ---------------------------------------------------------------- Pareto
+@_tool
+def py_pareto(a):
+    col = a["col"]
+    weight = a.get("weight") or None
+    minpct = float(a.get("minpct") or 0)
+    cutoff = float(a.get("cutoff") or 80)
+    _need(col)
+    g = _cat(DF[col])
+    missing = int(g.isna().sum())
+    if weight:
+        _need(weight)
+        w = pd.to_numeric(DF[weight], errors="coerce")
+        tmp = pd.DataFrame({"g": g, "w": w}).dropna()
+        if (tmp["w"] < 0).any():
+            raise UserError("A variável de ponderação contém valores negativos.")
+        ser = tmp.groupby("g")["w"].sum()
+    else:
+        ser = g.dropna().value_counts()
+    ser = ser.sort_values(ascending=False, kind="mergesort")
+    total = float(ser.sum())
+    if total <= 0 or len(ser) == 0:
+        raise UserError("Sem dados para o Pareto.")
+    labels, vals = [str(v) for v in ser.index], [float(v) for v in ser.values]
+    grouped = 0
+    if minpct > 0:
+        small = [i for i, v in enumerate(vals) if v / total * 100 < minpct]
+        if len(small) >= 2:
+            grouped = len(small)
+            other = sum(vals[i] for i in small)
+            labels = [l for i, l in enumerate(labels) if i not in small] + ["Outros (%d categorias)" % grouped]
+            vals = [v for i, v in enumerate(vals) if i not in small] + [other]
+    cum = list(np.cumsum(vals) / total * 100)
+    vital = next((i + 1 for i, c in enumerate(cum) if c >= cutoff - 1e-9), len(vals))
+    return {"labels": labels, "values": vals, "pct": [v / total * 100 for v in vals], "cum": cum, "total": total,
+            "vital": int(vital), "cutoff": cutoff, "n_categories": len(labels), "missing": missing,
+            "weighted": bool(weight), "grouped": grouped}
+
+
+# ---------------------------------------------------------------- estratificação / multi-vari
+@_tool
+def py_strat(a):
+    col, fa, fb = a["col"], a["fa"], a.get("fb") or None
+    alpha = float(a.get("alpha") or 0.05)
+    _need(col)
+    _need(fa, "Selecione o fator A.")
+    tmp = pd.DataFrame({"x": pd.to_numeric(DF[col], errors="coerce"), "a": _cat(DF[fa])})
+    if fb:
+        _need(fb)
+        tmp["b"] = _cat(DF[fb])
+    tmp = tmp.dropna()
+    if len(tmp) < 4:
+        raise UserError("Dados insuficientes.")
+    la = sorted(tmp["a"].unique(), key=_nat)
+    if len(la) > 25:
+        raise UserError("O fator A tem %d níveis (máximo 25)." % len(la))
+    lb = sorted(tmp["b"].unique(), key=_nat) if fb else []
+    if len(lb) > 8:
+        raise UserError("O fator B tem %d níveis (máximo 8)." % len(lb))
+    boxes, table = [], []
+    for lv in la:
+        v = tmp.loc[tmp["a"] == lv, "x"].values
+        b = _box(v)
+        b["name"] = lv
+        boxes.append(b)
+        table.append({"a": lv, "b": None, "n": int(len(v)), "mean": float(v.mean()), "sd": float(v.std(ddof=1)) if len(v) > 1 else None,
+                      "median": float(np.median(v)), "min": float(v.min()), "max": float(v.max())})
+    if fb:
+        for lv in la:
+            for lv2 in lb:
+                v = tmp.loc[(tmp["a"] == lv) & (tmp["b"] == lv2), "x"].values
+                if len(v):
+                    table.append({"a": lv, "b": lv2, "n": int(len(v)), "mean": float(v.mean()),
+                                  "sd": float(v.std(ddof=1)) if len(v) > 1 else None, "median": float(np.median(v)),
+                                  "min": float(v.min()), "max": float(v.max())})
+    tests = None
+    groups = [tmp.loc[tmp["a"] == lv, "x"].values for lv in la]
+    groups = [g for g in groups if len(g) >= 2]
+    if len(groups) >= 2:
+        tests = {}
+        try:
+            tests["levene_p"] = float(stats.levene(*groups, center="median").pvalue)
+            tests["anova_p"] = float(stats.f_oneway(*groups).pvalue)
+            tests["kruskal_p"] = float(stats.kruskal(*groups).pvalue)
+        except Exception:
+            pass
+    rs = np.random.RandomState(7)
+    sub = tmp if len(tmp) <= 3000 else tmp.iloc[rs.choice(len(tmp), 3000, replace=False)]
+    ia = {lv: i for i, lv in enumerate(la)}
+    series = []
+    if fb:
+        nb = len(lb)
+        for j, lv2 in enumerate(lb):
+            off = (j - (nb - 1) / 2.0) * (0.6 / nb)
+            d = sub[sub["b"] == lv2]
+            pts = [[float(ia[r.a] + off + rs.uniform(-0.04, 0.04)), float(r.x)] for r in d.itertuples()]
+            allb = tmp[tmp["b"] == lv2]
+            means = [[float(ia[lv] + off), float(allb.loc[allb["a"] == lv, "x"].mean())] for lv in la if (allb["a"] == lv).any()]
+            series.append({"name": lv2, "points": pts, "means": means})
+    else:
+        pts = [[float(ia[r.a] + rs.uniform(-0.2, 0.2)), float(r.x)] for r in sub.itertuples()]
+        means = [[float(i), float(tmp.loc[tmp["a"] == lv, "x"].mean())] for i, lv in enumerate(la)]
+        series.append({"name": "Observações", "points": pts, "means": means})
+    return {"levels_a": la, "levels_b": lb, "boxes": boxes, "table": table, "tests": tests, "series": series, "n": int(len(tmp)),
+            "alpha": alpha, "overall_mean": float(tmp["x"].mean())}
+
+
+# ---------------------------------------------------------------- MSA: Gage R&R (cruzado, ANOVA)
+@_tool
+def py_gage(a):
+    meas, part, oper = a["meas"], a["part"], a["oper"]
+    lsl, usl = _opt(a, "lsl"), _opt(a, "usl")
+    k = float(a.get("k") or 6)
+    aint = float(a.get("aint") or 0.05)
+    _need(meas)
+    _need(part, "Selecione a coluna de peças.")
+    _need(oper, "Selecione a coluna de operadores.")
+    if len({meas, part, oper}) < 3:
+        raise UserError("Medição, peça e operador devem ser colunas diferentes.")
+    d = pd.DataFrame({"y": pd.to_numeric(DF[meas], errors="coerce"), "p": _cat(DF[part]), "o": _cat(DF[oper])}).dropna()
+    parts, opers = sorted(d["p"].unique(), key=_nat), sorted(d["o"].unique(), key=_nat)
+    P, O = len(parts), len(opers)
+    if P < 2 or O < 2:
+        raise UserError("O estudo requer no mínimo 2 peças e 2 operadores (recomendado: 10 peças, 3 operadores, 2-3 repetições).")
+    grp = {kk: v.values for kk, v in d.groupby(["p", "o"])["y"]}
+    sizes = {len(v) for v in grp.values()}
+    if len(grp) != P * O or len(sizes) != 1:
+        raise UserError("Estudo desbalanceado: cada combinação peça × operador precisa ter o mesmo número de repetições (há combinações ausentes ou com contagens diferentes).")
+    R = sizes.pop()
+    if R < 2:
+        raise UserError("São necessárias ao menos 2 repetições por combinação peça × operador.")
+    arr = np.array([[grp[(p, o)] for o in opers] for p in parts], float)  # P x O x R
+    g = arr.mean()
+    mp, mo, mpo = arr.mean(axis=(1, 2)), arr.mean(axis=(0, 2)), arr.mean(axis=2)
+    ss_p = O * R * np.sum((mp - g) ** 2)
+    ss_o = P * R * np.sum((mo - g) ** 2)
+    ss_po = R * np.sum((mpo - mp[:, None] - mo[None, :] + g) ** 2)
+    ss_e = np.sum((arr - mpo[:, :, None]) ** 2)
+    ss_t = np.sum((arr - g) ** 2)
+    df_p, df_o, df_po, df_e = P - 1, O - 1, (P - 1) * (O - 1), P * O * (R - 1)
+    ms_p, ms_o, ms_po, ms_e = ss_p / df_p, ss_o / df_o, ss_po / df_po, ss_e / df_e
+    if ms_e == 0:
+        raise UserError("Repetibilidade nula (medições repetidas idênticas): dados insuficientes para o ANOVA.")
+    f_po = ms_po / ms_e
+    p_po = float(stats.f.sf(f_po, df_po, df_e))
+    use_int = p_po <= aint
+    if use_int:
+        f_p, f_o = ms_p / ms_po, ms_o / ms_po
+        p_p, p_o = float(stats.f.sf(f_p, df_p, df_po)), float(stats.f.sf(f_o, df_o, df_po))
+        anova = [["Peça", df_p, ss_p, ms_p, f_p, p_p], ["Operador", df_o, ss_o, ms_o, f_o, p_o],
+                 ["Peça × Operador", df_po, ss_po, ms_po, f_po, p_po], ["Repetibilidade", df_e, ss_e, ms_e, None, None],
+                 ["Total", P * O * R - 1, ss_t, None, None, None]]
+        anova_red = None
+        v_rep = ms_e
+        v_int = max(0.0, (ms_po - ms_e) / R)
+        v_op = max(0.0, (ms_o - ms_po) / (P * R))
+        v_part = max(0.0, (ms_p - ms_po) / (O * R))
+    else:
+        df_pool = df_po + df_e
+        ms_pool = (ss_po + ss_e) / df_pool
+        f_p, f_o = ms_p / ms_pool, ms_o / ms_pool
+        p_p, p_o = float(stats.f.sf(f_p, df_p, df_pool)), float(stats.f.sf(f_o, df_o, df_pool))
+        anova = [["Peça", df_p, ss_p, ms_p, ms_p / ms_po, float(stats.f.sf(ms_p / ms_po, df_p, df_po))],
+                 ["Operador", df_o, ss_o, ms_o, ms_o / ms_po, float(stats.f.sf(ms_o / ms_po, df_o, df_po))],
+                 ["Peça × Operador", df_po, ss_po, ms_po, f_po, p_po], ["Repetibilidade", df_e, ss_e, ms_e, None, None],
+                 ["Total", P * O * R - 1, ss_t, None, None, None]]
+        anova_red = [["Peça", df_p, ss_p, ms_p, f_p, p_p], ["Operador", df_o, ss_o, ms_o, f_o, p_o],
+                     ["Repetibilidade (combinada)", df_pool, ss_po + ss_e, ms_pool, None, None],
+                     ["Total", P * O * R - 1, ss_t, None, None, None]]
+        v_rep = ms_pool
+        v_int = 0.0
+        v_op = max(0.0, (ms_o - ms_pool) / (P * R))
+        v_part = max(0.0, (ms_p - ms_pool) / (O * R))
+    v_reprod = v_op + v_int
+    v_grr = v_rep + v_reprod
+    v_tot = v_grr + v_part
+    tol = (usl - lsl) if (usl is not None and lsl is not None) else None
+
+    def row(name, v, indent=False):
+        sd = math.sqrt(v)
+        return {"name": name, "indent": indent, "var": v, "sd": sd, "sv": k * sd, "pct_contrib": 100.0 * v / v_tot,
+                "pct_sv": 100.0 * sd / math.sqrt(v_tot), "pct_tol": (100.0 * k * sd / tol) if tol else None}
+    comps = [row("Gage R&R total", v_grr), row("Repetibilidade", v_rep), row("Reprodutibilidade", v_reprod)]
+    comps.append(row("Operador", v_op, True))
+    if use_int:
+        comps.append(row("Operador × Peça", v_int, True))
+    comps.append(row("Peça a peça", v_part))
+    comps.append(row("Variação total", v_tot))
+    ndc = int(math.floor(1.41 * math.sqrt(v_part) / math.sqrt(v_grr))) if v_grr > 0 else None
+    by_op = []
+    for j, o in enumerate(opers):
+        by_op.append({"name": o, "means": [float(mpo[i, j]) for i in range(P)],
+                      "points": [[i, float(v)] for i in range(P) for v in arr[i, j, :]]})
+    return {"P": P, "O": O, "R": R, "n": int(P * O * R), "parts": parts, "opers": opers, "anova": anova, "anova_reduced": anova_red,
+            "interaction_kept": bool(use_int), "p_interaction": p_po, "aint": aint, "comps": comps, "ndc": ndc, "k": k,
+            "tol": tol, "by_op": by_op, "pct_sv": comps[0]["pct_sv"], "pct_contrib": comps[0]["pct_contrib"],
+            "pct_tol": comps[0]["pct_tol"]}
+
+
+# ---------------------------------------------------------------- MSA por atributos (Kappa)
+def _cp_prop(x, n, alpha=0.05):
+    lo = 0.0 if x == 0 else float(stats.beta.ppf(alpha / 2, x, n - x + 1))
+    hi = 1.0 if x == n else float(stats.beta.ppf(1 - alpha / 2, x + 1, n - x))
+    return [lo * 100, hi * 100]
+
+
+def _fleiss(counts):
+    counts = np.asarray(counts, float)
+    N, kc = counts.shape
+    m = counts.sum(axis=1)[0]
+    if m < 2 or N < 1:
+        return None
+    pi = (np.sum(counts ** 2, axis=1) - m) / (m * (m - 1))
+    pbar = pi.mean()
+    pj = counts.sum(axis=0) / (N * m)
+    pe = np.sum(pj ** 2)
+    return float((pbar - pe) / (1 - pe)) if pe < 1 else None
+
+
+def _cohen(x, y, cats):
+    x, y = np.asarray(x), np.asarray(y)
+    po = float(np.mean(x == y))
+    pe = sum(float(np.mean(x == c)) * float(np.mean(y == c)) for c in cats)
+    return float((po - pe) / (1 - pe)) if pe < 1 else None
+
+
+@_tool
+def py_kappa(a):
+    rating, appr, samp = a["rating"], a["appr"], a["samp"]
+    std = a.get("std") or None
+    alpha = float(a.get("alpha") or 0.05)
+    _need(rating, "Selecione a coluna de avaliações.")
+    _need(appr, "Selecione a coluna de avaliadores.")
+    _need(samp, "Selecione a coluna de amostras.")
+    cols = {"r": _cat(DF[rating]), "a": _cat(DF[appr]), "s": _cat(DF[samp])}
+    if std:
+        _need(std)
+        cols["t"] = _cat(DF[std])
+    d = pd.DataFrame(cols).dropna()
+    apprs, samples = sorted(d["a"].unique(), key=_nat), sorted(d["s"].unique(), key=_nat)
+    cats = sorted(d["r"].unique(), key=_nat)
+    if len(apprs) < 2 or len(samples) < 5 or len(cats) < 2:
+        raise UserError("São necessários ≥ 2 avaliadores, ≥ 5 amostras e ≥ 2 categorias de avaliação (recomendado ≥ 30 amostras).")
+    grp = {kk: v["r"].tolist() for kk, v in d.groupby(["s", "a"])}
+    sizes = {len(v) for v in grp.values()}
+    if len(grp) != len(samples) * len(apprs) or len(sizes) != 1:
+        raise UserError("Estudo desbalanceado: cada avaliador deve avaliar todas as amostras, com o mesmo número de repetições.")
+    m = sizes.pop()
+    truth = {}
+    if std:
+        for s_, v in d.groupby("s")["t"]:
+            u = v.unique()
+            if len(u) != 1:
+                raise UserError("A amostra «%s» tem mais de um valor de padrão." % s_)
+            truth[s_] = u[0]
+    N = len(samples)
+    res = {"n_samples": N, "n_appraisers": len(apprs), "reps": m, "categories": cats, "within": [], "vs_std": [], "between": None,
+           "all_vs_std": None, "has_std": bool(std)}
+    for ap in apprs:
+        ok = sum(1 for s_ in samples if len(set(grp[(s_, ap)])) == 1)
+        item = {"name": ap, "agree": ok, "n": N, "pct": 100.0 * ok / N, "ci": _cp_prop(ok, N, alpha), "kappa": None}
+        if m >= 2:
+            cnt = np.array([[grp[(s_, ap)].count(c) for c in cats] for s_ in samples])
+            item["kappa"] = _fleiss(cnt)
+        res["within"].append(item)
+    allr = {s_: sum((grp[(s_, ap)] for ap in apprs), []) for s_ in samples}
+    okb = sum(1 for s_ in samples if len(set(allr[s_])) == 1)
+    cnt = np.array([[allr[s_].count(c) for c in cats] for s_ in samples])
+    res["between"] = {"agree": okb, "n": N, "pct": 100.0 * okb / N, "ci": _cp_prop(okb, N, alpha), "kappa": _fleiss(cnt)}
+    if std:
+        pool_r, pool_t = [], []
+        for ap in apprs:
+            ok = sum(1 for s_ in samples if all(v == truth[s_] for v in grp[(s_, ap)]))
+            rr = [v for s_ in samples for v in grp[(s_, ap)]]
+            tt = [truth[s_] for s_ in samples for _ in grp[(s_, ap)]]
+            pool_r += rr
+            pool_t += tt
+            res["vs_std"].append({"name": ap, "agree": ok, "n": N, "pct": 100.0 * ok / N, "ci": _cp_prop(ok, N, alpha),
+                                  "kappa": _cohen(rr, tt, cats)})
+        oka = sum(1 for s_ in samples if all(v == truth[s_] for v in allr[s_]))
+        res["all_vs_std"] = {"agree": oka, "n": N, "pct": 100.0 * oka / N, "ci": _cp_prop(oka, N, alpha),
+                             "kappa": _cohen(pool_r, pool_t, cats)}
+    return res
+
+
+# ---------------------------------------------------------------- capabilidade por atributos
+def _match(series, val):
+    if pd.api.types.is_numeric_dtype(series):
+        try:
+            return series == float(str(val).replace(",", "."))
+        except Exception:
+            pass
+    return _cat(series) == str(val)
+
+
+@_tool
+def py_attr(a):
+    mode = a["mode"]
+    alpha = float(a.get("alpha") or 0.05)
+    shift = float(a.get("shift") if a.get("shift") is not None else 1.5)
+    if mode == "defective":
+        col = a["col"]
+        _need(col)
+        s = DF[col].dropna()
+        n = int(len(s))
+        if n == 0:
+            raise UserError("Sem dados.")
+        dcount = int(_match(s, a["value"]).sum())
+        p = dcount / n
+        ci = _cp_prop(dcount, n, alpha)
+        res = {"mode": mode, "n": n, "defects": dcount, "p": p, "ci_p": [ci[0] / 100, ci[1] / 100], "dpmo": p * 1e6,
+               "ci_dpmo": [ci[0] * 1e4, ci[1] * 1e4], "yield": (1 - p) * 100,
+               "sigma": (_zbench(p) + shift) if p > 0 else None, "sigma_worst": _zbench(ci[1] / 100) + shift,
+               "sigma_best": (_zbench(ci[0] / 100) + shift) if ci[0] > 0 else None,
+               "chart": {"labels": ["Sem defeito", "Defeituoso"], "values": [n - dcount, dcount]}, "shift": shift}
+        return res
+    if mode == "defects":
+        col = a["col"]
+        opps = float(a.get("opps") or 1)
+        x = _series(col).values.astype(float)
+        n = len(x)
+        if n == 0:
+            raise UserError("Sem dados.")
+        if (x < 0).any():
+            raise UserError("A contagem de defeitos não pode ser negativa.")
+        tot = float(x.sum())
+        dpu = tot / n
+        lo = 0.0 if tot == 0 else float(stats.chi2.ppf(alpha / 2, 2 * tot) / 2) / n
+        hi = float(stats.chi2.ppf(1 - alpha / 2, 2 * tot + 2) / 2) / n
+        dpo = dpu / opps
+        dpmo = dpo * 1e6
+        var_ratio = float(x.var(ddof=1) / x.mean()) if x.mean() > 0 and n > 1 else None
+        mx = int(min(x.max(), 30))
+        freq = [int((x == v).sum()) for v in range(mx + 1)]
+        return {"mode": mode, "n": n, "total": tot, "dpu": dpu, "ci_dpu": [lo, hi], "opps": opps, "dpo": dpo, "dpmo": dpmo,
+                "yield_poisson": math.exp(-dpu) * 100, "yield_obs": float((x == 0).mean()) * 100,
+                "sigma": (_zbench(min(dpo, 0.999999)) + shift) if dpo > 0 else None, "dispersion": var_ratio,
+                "chart": {"labels": [str(v) for v in range(mx + 1)], "values": freq}, "shift": shift}
+    if mode == "rty":
+        steps = a.get("steps") or []
+        if len(steps) < 1:
+            raise UserError("Informe ao menos uma etapa (nome; unidades; aprovadas).")
+        rows, rty = [], 1.0
+        for nm, units, good in steps:
+            units, good = float(units), float(good)
+            if units <= 0 or good < 0 or good > units:
+                raise UserError("Etapa «%s»: unidades deve ser > 0 e aprovadas entre 0 e unidades." % nm)
+            fty = good / units
+            rty *= fty
+            rows.append({"name": nm, "units": units, "good": good, "fty": fty * 100, "rty_cum": rty * 100})
+        k = len(rows)
+        worst = min(rows, key=lambda r: r["fty"])
+        return {"mode": mode, "rows": rows, "rty": rty * 100, "normalized": rty ** (1.0 / k) * 100 if rty > 0 else 0.0,
+                "dpmo": (1 - rty) * 1e6, "sigma": (_zbench(1 - rty) + shift) if 0 < rty < 1 else None, "worst": worst["name"],
+                "chart": {"labels": [r["name"] for r in rows], "fty": [r["fty"] for r in rows], "rty": [r["rty_cum"] for r in rows]},
+                "shift": shift}
+    raise UserError("Modo desconhecido.")
+
+
+# ---------------------------------------------------------------- plano de coleta
+def _power_t(n, delta, sigma, alpha, two):
+    if two:
+        df = 2 * n - 2
+        nc = delta / (sigma * math.sqrt(2.0 / n))
+    else:
+        df = n - 1
+        nc = delta * math.sqrt(n) / sigma
+    tc = stats.t.ppf(1 - alpha / 2, df)
+    return float(stats.nct.sf(tc, df, nc) + stats.nct.cdf(-tc, df, nc))
+
+
+def _smallest_n(ok, start=2, cap=2000000):
+    hi = start
+    while not ok(hi):
+        hi *= 2
+        if hi > cap:
+            raise UserError("O tamanho de amostra necessário é muito grande (> %d) para estes parâmetros." % cap)
+    lo = max(start, hi // 2)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if ok(mid):
+            hi = mid
+        else:
+            lo = mid + 1
+    return int(lo)
+
+
+@_tool
+def py_plan(a):
+    mode = a["mode"]
+    alpha = float(a.get("alpha") or 0.05)
+    z = float(stats.norm.ppf(1 - alpha / 2))
+    if mode == "mean":
+        sigma, E = _opt(a, "sigma"), _opt(a, "err")
+        if not sigma or not E or sigma <= 0 or E <= 0:
+            raise UserError("Informe desvio padrão esperado (σ) e margem de erro (E), ambos > 0.")
+        n = int(math.ceil((z * sigma / E) ** 2))
+        for _ in range(50):
+            nn = int(math.ceil((stats.t.ppf(1 - alpha / 2, max(n - 1, 1)) * sigma / E) ** 2))
+            if nn == n:
+                break
+            n = nn
+        grid = sorted(set(int(v) for v in np.linspace(max(2, n * 0.25), n * 2, 40)))
+        curve = [[g, float(stats.t.ppf(1 - alpha / 2, g - 1) * sigma / math.sqrt(g))] for g in grid]
+        return {"mode": mode, "n": max(n, 2), "curve": curve, "x_label": "n", "y_label": "Margem de erro (±)", "target": E,
+                "formula": "n = (t·σ/E)²  com σ = %s e E = %s" % (_g(sigma), _g(E))}
+    if mode == "prop":
+        p, E, N = _opt(a, "p"), _opt(a, "err"), _opt(a, "popn")
+        if p is None or not (0 < p < 1) or not E or E <= 0:
+            raise UserError("Informe a proporção esperada (entre 0 e 1) e a margem de erro (> 0).")
+        n0 = z * z * p * (1 - p) / (E * E)
+        n = int(math.ceil(n0 / (1 + (n0 - 1) / N))) if N else int(math.ceil(n0))
+
+        def hw(g):
+            v = z * math.sqrt(p * (1 - p) / g)
+            return v * math.sqrt((N - g) / (N - 1)) if N and N > 1 and g < N else v
+        grid = sorted(set(int(v) for v in np.linspace(max(2, n * 0.25), n * 2, 40)))
+        return {"mode": mode, "n": n, "curve": [[g, float(hw(g))] for g in grid], "x_label": "n", "y_label": "Margem de erro (±)",
+                "target": E, "formula": "n = z²·p(1−p)/E²  com p = %s e E = %s%s" % (_g(p), _g(E), " (com correção para população finita)" if N else "")}
+    if mode == "cap":
+        cpk, hwt = _opt(a, "cpk"), _opt(a, "hw")
+        if not cpk or cpk <= 0 or not hwt or hwt <= 0:
+            raise UserError("Informe o Cpk esperado e a precisão desejada (± no Cpk), ambos > 0.")
+
+        def hwf(g):
+            return z * math.sqrt(1.0 / (9.0 * g) + cpk ** 2 / (2.0 * (g - 1)))
+        n = _smallest_n(lambda g: hwf(g) <= hwt, 3)
+        grid = sorted(set(int(v) for v in np.linspace(max(3, n * 0.25), n * 2, 40)))
+        return {"mode": mode, "n": n, "curve": [[g, float(hwf(g))] for g in grid], "x_label": "n", "y_label": "Semi-amplitude do IC do Cpk (±)",
+                "target": hwt, "formula": "IC(Cpk) ≈ Cpk ± z·√(1/(9n) + Cpk²/(2(n−1)))  com Cpk = %s" % _g(cpk)}
+    if mode == "ttest":
+        delta, sigma, pw = _opt(a, "delta"), _opt(a, "sigma"), _opt(a, "power")
+        two = (a.get("ttype") or "1") == "2"
+        if not delta or not sigma or delta <= 0 or sigma <= 0 or not pw or not (0.5 <= pw < 1):
+            raise UserError("Informe δ > 0, σ > 0 e poder entre 0,50 e 0,99.")
+        n = _smallest_n(lambda g: _power_t(g, delta, sigma, alpha, two) >= pw, 2)
+        grid = sorted(set(int(v) for v in np.linspace(max(2, n * 0.2), n * 2, 40)))
+        return {"mode": mode, "n": n, "two": two, "n_total": n * 2 if two else n, "power_at_n": _power_t(n, delta, sigma, alpha, two),
+                "curve": [[g, _power_t(g, delta, sigma, alpha, two)] for g in grid], "x_label": "n" + (" por grupo" if two else ""),
+                "y_label": "Poder", "target": pw,
+                "formula": "Teste t %s bilateral, δ = %s, σ = %s, α = %s" % ("de 2 amostras" if two else "de 1 amostra", _g(delta), _g(sigma), _g(alpha))}
+    raise UserError("Modo desconhecido.")
+
+</script>
+<script>
+/* ================= Funções puras (sem DOM) — testáveis em Node ================= */
+const MISSING_TOKENS = new Set(['', 'na', 'n/a', 'nan', 'null', 'none', '-', '--', 'nd', 'n/d', '#n/a', 's/d']);
+
+function normText(s) {
+  let v = String(s == null ? '' : s).replace(/^\uFEFF/, '').trim();
+  const m = v.match(/^(['"])([\s\S]*)\1$/);
+  if (m) v = m[2].trim();
+  return v;
+}
+function isMissingToken(s) { return MISSING_TOKENS.has(normText(s).toLowerCase()); }
+
+function detectDelimiter(lines) {
+  const candidates = [',', ';', '\t'];
+  let best = ';', bestCount = -1;
+  for (const d of candidates) {
+    const counts = lines.map(line => {
+      let count = 0, quoted = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { if (quoted && line[i + 1] === '"') i++; else quoted = !quoted; }
+        else if (!quoted && ch === d) count++;
+      }
+      return count;
+    });
+    const first = counts[0];
+    const consistent = counts.every(c => c === first);
+    if (consistent && first > bestCount) { bestCount = first; best = d; }
+  }
+  return best;
+}
+
+function parseCSVRows(src, delimiter) {
+  const rows = [];
+  let row = [], field = '', quoted = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === '"') {
+      if (quoted && src[i + 1] === '"') { field += '"'; i++; } else quoted = !quoted;
+    } else if (ch === delimiter && !quoted) {
+      row.push(field); field = '';
+    } else if ((ch === '\n' || ch === '\r') && !quoted) {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some(v => v.trim() !== '')) rows.push(row);
+      row = [];
+    } else field += ch;
+  }
+  row.push(field);
+  if (row.some(v => v.trim() !== '')) rows.push(row);
+  return rows;
+}
+
+/* texto CSV -> {columns, rawCols} (rawCols: coluna -> array de strings normalizadas) */
+function csvToColumns(text) {
+  if (typeof text !== 'string' || !text.trim()) throw new Error('O arquivo parece vazio ou inválido.');
+  const clean = text.replace(/^\uFEFF/, '');
+  const sampleLines = clean.split(/\r\n|\n|\r/).filter(l => l.trim() !== '').slice(0, 8);
+  const firstLine = sampleLines[0] || '';
+  const delimiter = detectDelimiter(sampleLines.length ? sampleLines : ['']);
+  const rows = parseCSVRows(clean, delimiter);
+  if (rows.length < 2) throw new Error('O arquivo precisa ter um cabeçalho e ao menos uma linha de dados.');
+  const seen = {};
+  const columns = rows[0].map((c, i) => {
+    let name = normText(c) || `Coluna ${i + 1}`;
+    seen[name] = (seen[name] || 0) + 1;
+    return seen[name] === 1 ? name : `${name}_${seen[name]}`;
+  });
+  const rawCols = {};
+  columns.forEach(c => { rawCols[c] = []; });
+  for (let r = 1; r < rows.length; r++) {
+    columns.forEach((c, idx) => { rawCols[c].push(idx < rows[r].length ? normText(rows[r][idx]) : ''); });
+  }
+  return { columns, rawCols, delimiter };
+}
+
+/* ---- números ---- */
+function detectDecimal(values, mode) {
+  if (mode === 'dot') return '.';
+  if (mode === 'comma') return ',';
+  let evC = 0, evD = 0, ambC = 0, ambD = 0;
+  for (const raw of values) {
+    let v = String(raw).replace(/[\s\u00A0]/g, '').replace(/^[-+]/, '');
+    const e = v.match(/^([\d.,]+)[eE][-+]?\d+$/);
+    if (e) v = e[1];
+    if (!/^[\d.,]+$/.test(v)) continue;
+    const hasD = v.includes('.'), hasC = v.includes(',');
+    if (hasD && hasC) { if (v.lastIndexOf(',') > v.lastIndexOf('.')) evC += 2; else evD += 2; }
+    else if (hasC || hasD) {
+      const sep = hasC ? ',' : '.';
+      const p = v.split(sep);
+      if (p.length > 2) { if (hasC) evD += 2; else evC += 2; }
+      else {
+        const isDec = p[1].length !== 3 || p[0] === '0' || p[0].length > 3 || /^0\d/.test(p[0]);
+        if (isDec) { if (hasC) evC += 2; else evD += 2; }
+        else { if (hasC) ambC++; else ambD++; }
+      }
+    }
+  }
+  if (evC > evD) return ',';
+  if (evD > evC) return '.';
+  return ambC > ambD ? ',' : '.';
+}
+
+function parseNumberStr(s, dec) {
+  let v = normText(s).replace(/[\s\u00A0]/g, '');
+  if (v === '') return NaN;
+  v = dec === ',' ? v.replace(/\./g, '').replace(',', '.') : v.replace(/,/g, '');
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(v)) return NaN;
+  return Number(v);
+}
+
+/* ---- datas -> 'YYYY-MM-DDTHH:MM:SS' ---- */
+function parseDateStr(s) {
+  const v = normText(s);
+  if (v.length < 8 || v.length > 32) return null;
+  let y, mo, d, hh = 0, mi = 0, ss = 0, m;
+  const time = '(?:[T\\s]+(\\d{1,2}):(\\d{2})(?::(\\d{2})(?:[.,]\\d+)?)?)?(?:Z|[+-]\\d{2}:?\\d{2})?';
+  if ((m = v.match(new RegExp('^(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})' + time + '$')))) {
+    y = +m[1]; mo = +m[2]; d = +m[3]; hh = +(m[4] || 0); mi = +(m[5] || 0); ss = +(m[6] || 0);
+  } else if ((m = v.match(new RegExp('^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4})' + time + '$')))) {
+    let a = +m[1], b = +m[2];
+    if (b > 12 && a <= 12) { mo = a; d = b; } else { d = a; mo = b; }
+    y = +m[3]; hh = +(m[4] || 0); mi = +(m[5] || 0); ss = +(m[6] || 0);
+  } else return null;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || hh > 23 || mi > 59 || ss > 59) return null;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  const p2 = n => String(n).padStart(2, '0');
+  return `${y}-${p2(mo)}-${p2(d)}T${p2(hh)}:${p2(mi)}:${p2(ss)}`;
+}
+
+/* ---- classificação de colunas ---- */
+function looksLikeId(name, nums, N) {
+  const vals = nums.filter(v => v !== null && Number.isFinite(v));
+  if (vals.length < 5 || !vals.every(Number.isInteger)) return false;
+  let consecutive = true;
+  for (let i = 1; i < vals.length; i++) if (Math.abs(vals[i] - vals[i - 1]) !== 1 || (i > 1 && Math.sign(vals[i] - vals[i - 1]) !== Math.sign(vals[1] - vals[0]))) { consecutive = false; break; }
+  if (consecutive) return true;
+  const nameHit = /(^|[_\s.-])(id|lote|lot|batch|serial|seq|sequencia|sequência|codigo|código|cod|ordem)([_\s.-]|$)/i.test(name);
+  return nameHit && new Set(vals).size / vals.length >= 0.9;
+}
+
+function classifyColumns(columns, rawCols, decimalMode, overrides) {
+  overrides = overrides || {};
+  const out = { types: {}, decimals: {}, numeric: {}, iso: {}, coerced: {}, discrete: [] };
+  for (const col of columns) {
+    const raw = rawCols[col];
+    const ne = raw.filter(v => !isMissingToken(v));
+    const N = ne.length;
+    const dec = detectDecimal(ne, decimalMode);
+    const nums = raw.map(v => (isMissingToken(v) ? null : parseNumberStr(v, dec)));
+    const isos = raw.map(v => (isMissingToken(v) ? null : parseDateStr(v)));
+    const nNum = nums.filter(v => v !== null && Number.isFinite(v)).length;
+    const nIso = isos.filter(v => v).length;
+    let type = 'categorical';
+    if (N > 0) {
+      if (nIso / N >= 0.8 && nNum / N < 0.5) type = 'datetime';
+      else if (nNum / N > 0.6) type = looksLikeId(col, nums, N) ? 'id' : 'numeric';
+    }
+    if (overrides[col]) type = overrides[col];
+    out.types[col] = type;
+    out.decimals[col] = dec;
+    out.numeric[col] = nums.map(v => (v === null || !Number.isFinite(v) ? null : v));
+    out.iso[col] = isos;
+    out.coerced[col] = type === 'numeric' || type === 'id' ? N - nNum : (type === 'datetime' ? N - nIso : 0);
+    if (type === 'numeric') {
+      const vals = out.numeric[col].filter(v => v !== null);
+      if (vals.length && vals.every(Number.isInteger) && new Set(vals).size <= 10) out.discrete.push(col);
+    }
+  }
+  return out;
+}
+
+function buildPayload(columns, types, rawCols, numeric, iso) {
+  const data = {};
+  for (const c of columns) {
+    const t = types[c];
+    if (t === 'numeric' || t === 'id') data[c] = numeric[c];
+    else if (t === 'datetime') data[c] = iso[c];
+    else data[c] = rawCols[c].map(v => (isMissingToken(v) ? null : v));
+  }
+  return { columns, types, data };
+}
+
+/* ---- formatação ---- */
+function fmt(v, d) {
+  if (d === undefined) d = 4;
+  if (v === null || v === undefined || typeof v !== 'number' || !Number.isFinite(v)) return '—';
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function fmtP(p) {
+  if (p === null || p === undefined || !Number.isFinite(p)) return '—';
+  return p < 0.0001 ? '< 0,0001' : fmt(p, 4);
+}
+function fmtSig(v, sig) {
+  if (v === null || v === undefined || !Number.isFinite(v)) return '—';
+  return v.toLocaleString('pt-BR', { maximumSignificantDigits: sig || 4 });
+}
+function fmtInt(v) { return v === null || v === undefined || !Number.isFinite(v) ? '—' : Math.round(v).toLocaleString('pt-BR'); }
+function fmtPPM(v) { return v === null || v === undefined || !Number.isFinite(v) ? '—' : v.toLocaleString('pt-BR', { maximumFractionDigits: v < 10 ? 2 : 0 }); }
+function escapeHtml(str) {
+  return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ---- regras de interpretação ---- */
+function cpkClass(v) {
+  if (v === null || v === undefined || !Number.isFinite(v)) return null;
+  if (v < 1.0) return { lvl: 'bad', txt: 'incapaz' };
+  if (v < 1.33) return { lvl: 'warn', txt: 'marginalmente capaz' };
+  if (v < 1.67) return { lvl: 'ok', txt: 'capaz' };
+  return { lvl: 'ok', txt: 'muito capaz' };
+}
+function kappaClass(k) {
+  if (k === null || k === undefined || !Number.isFinite(k)) return null;
+  if (k >= 0.9) return { lvl: 'ok', txt: 'excelente' };
+  if (k >= 0.75) return { lvl: 'ok', txt: 'boa (aceitável)' };
+  if (k >= 0.4) return { lvl: 'warn', txt: 'regular (melhorar o sistema)' };
+  return { lvl: 'bad', txt: 'ruim' };
+}
+function grrClass(pctSV, ndc) {
+  if (pctSV === null || pctSV === undefined) return null;
+  if (pctSV < 10 && (ndc === null || ndc >= 5)) return { lvl: 'ok', txt: 'sistema de medição aceitável' };
+  if (pctSV <= 30) return { lvl: 'warn', txt: 'marginal — aceitável só conforme criticidade e custo' };
+  return { lvl: 'bad', txt: 'inaceitável — corrigir o sistema de medição antes de prosseguir' };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { normText, isMissingToken, detectDelimiter, parseCSVRows, csvToColumns, detectDecimal, parseNumberStr, parseDateStr,
+    looksLikeId, classifyColumns, buildPayload, fmt, fmtP, fmtSig, fmtInt, fmtPPM, escapeHtml, cpkClass, kappaClass, grrClass };
+}
+
+/* ================= Estado global ================= */
+const state = { columns: [], rawCols: {}, types: {}, decimals: {}, numeric: {}, iso: {}, coerced: {}, overrides: {}, discrete: [], fileName: '', nRows: 0 };
+let columns = [], numericCols = [], categoricalCols = [], datetimeCols = [], idCols = [], discreteCols = [];
+let pyodide = null;
+let enginePromise = Promise.reject(new Error('Motor Python ainda não iniciado.'));
+enginePromise.catch(() => {});
+let dataPromise = Promise.resolve();
+window.__charts = {};
+const baseline = {};   // linha de base (capabilidade / atributos)
+const msaResults = {}; // validação do sistema de medição
+const $ = id => document.getElementById(id);
+
+const C = { teal: '#0E7C86', orange: '#C77A1F', red: '#C0392B', purple: '#6D4AFF', gray: '#51617C', green: '#1E8F5F', grid: '#E3E8F0', ink: '#12203A' };
+const PALETTE = ['#0E7C86', '#C77A1F', '#6D4AFF', '#1E8F5F', '#C0392B', '#8E44AD', '#2E86C1', '#B7950B'];
+
+/* ---------- configurações globais ---------- */
+function getAlpha() { const v = parseFloat(($('set-alpha') || {}).value); return v > 0 && v < 0.5 ? v : 0.05; }
+function getShift() { const el = $('set-shift'); return el && !el.checked ? 0 : 1.5; }
+function getDecimalMode() { return ($('set-decimal') || {}).value || 'auto'; }
+function confPct() { return fmt((1 - getAlpha()) * 100, 0) + '%'; }
+
+/* ---------- banner de status ---------- */
+function showBanner(kind, msg, autoHideMs) {
+  const b = $('status-banner');
+  if (!b) return;
+  b.textContent = msg;
+  b.className = 'status-banner status-' + kind;
+  b.style.display = 'block';
+  if (autoHideMs) setTimeout(() => { if (b.textContent === msg) b.style.display = 'none'; }, autoHideMs);
+}
+
+/* ================= Motor Python (Pyodide) ================= */
+async function initPyodideEngine() {
+  const pc = $('progress-container'), pf = $('progress-fill');
+  showBanner('load', 'Carregando ambiente Python (Pyodide WebAssembly)...');
+  if (pc) pc.style.display = 'block';
+  let progress = 10;
+  const bump = (limit) => { progress = Math.min(progress + 12, limit); if (pf) pf.style.width = progress + '%'; };
+  if (pf) pf.style.width = progress + '%';
+  if (typeof loadPyodide === 'undefined') throw new Error('Não foi possível carregar o Pyodide (verifique a conexão com a internet).');
+  pyodide = await loadPyodide({ messageCallback: (m) => { showBanner('load', 'Pyodide: ' + m); bump(45); } });
+  showBanner('load', 'Carregando bibliotecas científicas (NumPy, Pandas, SciPy)...');
+  await pyodide.loadPackage(['numpy', 'pandas', 'scipy'], { messageCallback: (m) => { showBanner('load', 'Pacotes: ' + m); bump(90); } });
+  await pyodide.runPythonAsync($('py-src').textContent);
+  if (pf) pf.style.width = '100%';
+  showBanner('ok', 'Motor estatístico pronto.', 2500);
+  setTimeout(() => { if (pc) pc.style.display = 'none'; }, 2500);
+}
+
+async function callPy(name, args) {
+  await enginePromise;
+  if (name !== 'py_load') await dataPromise;
+  const fn = pyodide.globals.get(name);
+  let out;
+  try { out = await fn(JSON.stringify(args || {})); } finally { if (fn && fn.destroy) fn.destroy(); }
+  const res = JSON.parse(out);
+  if (res && res.error) throw new Error(res.error);
+  return res;
+}
+
+function pushData() {
+  dataPromise = (async () => {
+    await enginePromise;
+    const payload = buildPayload(state.columns, state.types, state.rawCols, state.numeric, state.iso);
+    const fn = pyodide.globals.get('py_load');
+    let out;
+    try { out = JSON.parse(await fn(JSON.stringify(payload))); } finally { if (fn && fn.destroy) fn.destroy(); }
+    if (out.error) throw new Error(out.error);
+  })();
+  dataPromise.catch(() => {});
+}
+
+function requireData() {
+  if (!state.nRows) throw new Error('Carregue um arquivo CSV antes de executar esta ferramenta.');
+}
+
+/* ================= Carga e classificação dos dados ================= */
+const TYPE_LABEL = { numeric: 'Numérica', categorical: 'Categórica', datetime: 'Data/hora', id: 'ID / sequência' };
+
+function ingestCSV(text, name) {
+  const parsed = csvToColumns(text);
+  state.columns = parsed.columns;
+  state.rawCols = parsed.rawCols;
+  state.overrides = {};
+  if (name) state.fileName = name;
+  reclassify(true);
+}
+
+function reclassify(announce) {
+  if (!state.columns.length) return;
+  const cl = classifyColumns(state.columns, state.rawCols, getDecimalMode(), state.overrides);
+  Object.assign(state, { types: cl.types, decimals: cl.decimals, numeric: cl.numeric, iso: cl.iso, coerced: cl.coerced, discrete: cl.discrete });
+  columns = state.columns.slice();
+  const ofType = t => columns.filter(c => state.types[c] === t);
+  numericCols = ofType('numeric'); categoricalCols = ofType('categorical'); datetimeCols = ofType('datetime'); idCols = ofType('id');
+  discreteCols = state.discrete.slice();
+  state.nRows = state.rawCols[columns[0]].length;
+  renderPreviewTable();
+  populateSelectors();
+  pushData();
+  const zone = $('upload-zone');
+  if (zone) zone.classList.add('loaded');
+  if (announce) {
+    const commaCols = numericCols.filter(c => state.decimals[c] === ',').length;
+    const dec = numericCols.length ? ` Separador decimal: vírgula em ${commaCols} e ponto em ${numericCols.length - commaCols} coluna(s) numérica(s).` : '';
+    const bad = columns.filter(c => state.coerced[c] > 0);
+    showBanner(bad.length ? 'error' : 'ok',
+      `Arquivo carregado: ${state.nRows} linhas × ${columns.length} colunas.${dec}` +
+      (bad.length ? ` Atenção: valores não numéricos ignorados em ${bad.map(c => '«' + c + '»').join(', ')} — confira na Análise Exploratória.` : ''));
+  }
+}
+
+function renderPreviewTable() {
+  const rows = Math.min(6, state.nRows);
+  let html = '<table class="preview-table"><thead><tr>';
+  columns.forEach(c => { html += `<th>${escapeHtml(c)}<div class="th-type">${TYPE_LABEL[state.types[c]] || ''}</div></th>`; });
+  html += '</tr></thead><tbody>';
+  for (let i = 0; i < rows; i++) {
+    html += '<tr>' + columns.map(c => `<td>${escapeHtml(state.rawCols[c][i])}</td>`).join('') + '</tr>';
+  }
+  $('data-preview').innerHTML = html + '</tbody></table>';
+}
+
+function colsForKind(kind) {
+  switch (kind) {
+    case 'numeric': return numericCols;
+    case 'categorical': return categoricalCols;
+    case 'factor': return Array.from(new Set([...categoricalCols, ...discreteCols]));
+    case 'order': return [...datetimeCols, ...idCols, ...numericCols];
+    default: return columns;
+  }
+}
+
+function populateSelectors() {
+  document.querySelectorAll('select.data-select').forEach(sel => {
+    const prev = sel.value;
+    const cols = colsForKind(sel.dataset.kind);
+    sel.innerHTML = (sel.dataset.optional === '1' ? '<option value="">— nenhum —</option>' : '') +
+      cols.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    if (prev && (cols.includes(prev))) sel.value = prev;
+  });
+  if (typeof refreshAttrValues === 'function') refreshAttrValues();
+}
+
+/* ================= Helpers de campos e saída ================= */
+const fv = (p, n) => { const e = $(`${p}-${n}`); return e ? e.value : ''; };
+const fnum = (p, n) => {
+  const e = $(`${p}-${n}`);
+  if (!e || e.value === '' || e.value == null) return null;
+  const x = Number(String(e.value).replace(',', '.'));
+  return Number.isFinite(x) ? x : null;
+};
+const fchk = (p, n) => { const e = $(`${p}-${n}`); return !!(e && e.checked); };
+const fmulti = (p, n) => Array.from(document.querySelectorAll(`#${p}-${n} input[type=checkbox]`)).filter(c => c.checked).map(c => Number(c.value));
+
+function setMetrics(pid, items) {
+  $(pid + '-metrics').innerHTML = items.filter(Boolean).map(([label, val, tone]) =>
+    `<div class="metric-card${tone ? ' tone-' + tone : ''}"><div class="metric-value">${val}</div><div class="metric-label">${label}</div></div>`).join('');
+}
+function setAlerts(pid, list) {
+  $(pid + '-alerts').innerHTML = (list || []).map(a => `<div class="alert a-${a.level}">${escapeHtml(a.text)}</div>`).join('');
+}
+function setTable(pid, html, slot) { $(pid + '-table' + (slot || '') + '-container').innerHTML = html || ''; }
+function setInterp(pid, html) { $(pid + '-interp').innerHTML = html; }
+function badge(level, text) { return `<span class="badge b-${level}">${escapeHtml(text)}</span>`; }
+function interp(pid, level, headline, bullets) {
+  setInterp(pid, `<strong>Interpretação:</strong> ${headline ? badge(level, headline) : ''}` +
+    (bullets && bullets.length ? '<ul>' + bullets.filter(Boolean).map(b => `<li>${b}</li>`).join('') + '</ul>' : ''));
+}
+function tbl(headers, rows) {
+  const th = headers.map((h, i) => `<th${i > 0 ? ' class="num"' : ''}>${h}</th>`).join('');
+  const body = rows.map(r => `<tr${r._cls ? ' class="' + r._cls + '"' : ''}>` + (r.cells || r).map((c, i) => `<td${i > 0 ? ' class="num"' : ''}>${c === null || c === undefined ? '—' : c}</td>`).join('') + '</tr>').join('');
+  return `<div class="tbl-wrap"><table class="result-table"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function clearPanel(pid) {
+  ['metrics', 'alerts', 'table-container', 'table2-container', 'interp'].forEach(s => { const e = $(`${pid}-${s}`); if (e) e.innerHTML = ''; });
+  document.querySelectorAll(`#panel-${pid} canvas`).forEach(cv => {
+    if (window.__charts[cv.id]) { try { window.__charts[cv.id].destroy(); } catch (e) {} delete window.__charts[cv.id]; }
+    const box = cv.closest('.chart-box'); if (box) box.style.display = 'none';
+  });
+}
+const verdictLine = (ok, yes, no) => ok === null || ok === undefined ? 'não avaliado' : (ok ? yes : no);
+function normText2(nm, alpha) {
+  if (!nm || nm.ad_p === null || nm.ad_p === undefined) return 'Normalidade não avaliável.';
+  return `Anderson-Darling: A² = ${fmt(nm.ad, 3)}, p ${fmtP(nm.ad_p) === '< 0,0001' ? '' : '= '}${fmtP(nm.ad_p)}` +
+    (nm.sw_p !== null && nm.sw_p !== undefined ? ` · Shapiro-Wilk: W = ${fmt(nm.sw, 4)}, p ${fmtP(nm.sw_p) === '< 0,0001' ? '' : '= '}${fmtP(nm.sw_p)}` : '') +
+    ` → ${nm.normal ? 'não há evidência contra a normalidade' : 'os dados NÃO seguem distribuição normal'} (α = ${fmt(alpha, 2)}).`;
+}
+const axisTitle = t => ({ display: !!t, text: t || '' });
+const fmtAx = v => (typeof v === 'number' ? v.toLocaleString('pt-BR', { maximumSignificantDigits: 4 }) : v);
+
+/* ================= Gráficos (Chart.js) ================= */
+function mkChart(id, cfg) {
+  const cv = $(id);
+  if (!cv || typeof Chart === 'undefined') return null;
+  if (window.__charts[id]) { try { window.__charts[id].destroy(); } catch (e) {} }
+  const box = cv.closest('.chart-box');
+  if (box) box.style.display = 'block';
+  cfg.options = cfg.options || {};
+  cfg.options.animation = false;
+  cfg.options.responsive = true;
+  cfg.options.maintainAspectRatio = false;
+  window.__charts[id] = new Chart(cv.getContext('2d'), cfg);
+  return window.__charts[id];
+}
+
+/* Plugin: linhas verticais (LIE/LSE/alvo) e curvas sobre histograma de barras em eixo categórico */
+const overlayPlugin = {
+  id: 'overlay',
+  afterDatasetsDraw(chart) {
+    const o = (window.__ov || {})[chart.canvas && chart.canvas.id];
+    if (!o || !o.centers || o.centers.length < 2) return;
+    const bars = chart.getDatasetMeta(0).data;
+    if (!bars || bars.length < 2) return;
+    const c0 = o.centers[0], c1 = o.centers[o.centers.length - 1];
+    const x0 = bars[0].x, x1 = bars[bars.length - 1].x;
+    const X = v => x0 + (v - c0) / (c1 - c0) * (x1 - x0);
+    const ctx = chart.ctx, a = chart.chartArea, y = chart.scales.y;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(a.left, a.top, a.width, a.height); ctx.clip();
+    (o.curves || []).forEach(cv => {
+      ctx.beginPath();
+      cv.points.forEach((p, i) => { const px = X(p[0]), py = y.getPixelForValue(p[1]); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+      ctx.strokeStyle = cv.color; ctx.lineWidth = cv.width || 2; ctx.setLineDash(cv.dash || []); ctx.stroke();
+    });
+    (o.vlines || []).forEach(l => {
+      const px = X(l.v);
+      ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom);
+      ctx.strokeStyle = l.color; ctx.lineWidth = l.width || 2; ctx.setLineDash(l.dash || []); ctx.stroke();
+    });
+    ctx.restore();
+    ctx.save();
+    ctx.font = '11px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle';
+    const items = [...(o.curves || []), ...(o.vlines || [])].filter(i => i.label);
+    let ty = a.top + 10;
+    items.forEach(it => {
+      const w = ctx.measureText(it.label).width;
+      const lx = a.right - w - 34;
+      ctx.beginPath(); ctx.moveTo(lx, ty); ctx.lineTo(lx + 22, ty);
+      ctx.strokeStyle = it.color; ctx.lineWidth = 2; ctx.setLineDash(it.dash || []); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle = C.ink; ctx.textAlign = 'left'; ctx.fillText(it.label, lx + 28, ty);
+      ty += 15;
+    });
+    ctx.restore();
+  }
+};
+
+/* Plugin: boxplot (barras flutuantes Q1–Q3 + mediana, bigodes e outliers) */
+const boxPlugin = {
+  id: 'boxplot',
+  afterDatasetsDraw(chart) {
+    const o = (window.__box || {})[chart.canvas && chart.canvas.id];
+    if (!o || !o.boxes) return;
+    const bars = chart.getDatasetMeta(0).data, y = chart.scales.y, ctx = chart.ctx;
+    ctx.save();
+    o.boxes.forEach((b, i) => {
+      const bar = bars[i];
+      if (!bar) return;
+      const x = bar.x, w = bar.width || 30, h = w / 4;
+      ctx.strokeStyle = C.ink; ctx.fillStyle = C.ink; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      const ym = y.getPixelForValue(b.med);
+      ctx.beginPath(); ctx.moveTo(x - w / 2, ym); ctx.lineTo(x + w / 2, ym); ctx.stroke();
+      const yq3 = y.getPixelForValue(b.q3), yq1 = y.getPixelForValue(b.q1), yuw = y.getPixelForValue(b.uw), ylw = y.getPixelForValue(b.lw);
+      ctx.beginPath(); ctx.moveTo(x, yq3); ctx.lineTo(x, yuw); ctx.moveTo(x - h, yuw); ctx.lineTo(x + h, yuw);
+      ctx.moveTo(x, yq1); ctx.lineTo(x, ylw); ctx.moveTo(x - h, ylw); ctx.lineTo(x + h, ylw); ctx.stroke();
+      (b.out || []).forEach(v => { const yy = y.getPixelForValue(v); ctx.beginPath(); ctx.arc(x, yy, 3, 0, 6.2832); ctx.strokeStyle = C.red; ctx.stroke(); });
+    });
+    ctx.restore();
+  }
+};
+if (typeof Chart !== 'undefined') {
+  Chart.register(overlayPlugin, boxPlugin);
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  Chart.defaults.font.size = 11;
+}
+
+function drawBox(chartId, boxes, yLabel) {
+  window.__box = window.__box || {};
+  window.__box[chartId] = { boxes };
+  let lo = Infinity, hi = -Infinity;
+  boxes.forEach(b => { lo = Math.min(lo, b.lw, ...b.out); hi = Math.max(hi, b.uw, ...b.out); });
+  const pad = (hi - lo) * 0.08 || 1;
+  mkChart(chartId, {
+    type: 'bar',
+    data: { labels: boxes.map(b => b.name), datasets: [{ label: 'Q1–Q3', data: boxes.map(b => [b.q1, b.q3]), backgroundColor: 'rgba(14,124,134,.25)', borderColor: C.teal, borderWidth: 1.5, barPercentage: 0.5, categoryPercentage: 0.8 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { min: lo - pad, max: hi + pad, title: axisTitle(yLabel) } } }
+  });
+}
+
+/* Histograma com curvas e linhas verticais */
+function drawHist(chartId, hist, overlay, xLabel) {
+  window.__ov = window.__ov || {};
+  window.__ov[chartId] = Object.assign({ centers: hist.centers }, overlay || {});
+  mkChart(chartId, {
+    type: 'bar',
+    data: { labels: hist.centers.map(fmtAx), datasets: [{ label: 'Frequência', data: hist.counts, backgroundColor: 'rgba(14,124,134,.5)', borderColor: C.teal, borderWidth: 1, barPercentage: 1, categoryPercentage: 1 }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { x: { title: axisTitle(xLabel), ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }, y: { beginAtZero: true, title: axisTitle('Frequência') } }
+    }
+  });
+}
+
+/* ================= Especificação das ferramentas ================= */
+const RULE_TXT = {
+  1: '1 ponto além de 3σ', 2: '9 pontos seguidos do mesmo lado da linha central', 3: '6 pontos seguidos crescentes ou decrescentes',
+  4: '14 pontos alternando para cima e para baixo', 5: '2 de 3 pontos além de 2σ (mesmo lado)', 6: '4 de 5 pontos além de 1σ (mesmo lado)',
+  7: '15 pontos seguidos dentro de 1σ (estratificação)', 8: '8 pontos seguidos além de 1σ (mistura)'
+};
+const SPEC = (label, name) => ({ name, label, type: 'number', placeholder: 'opcional' });
+
+const TOOLS = {
+  plan: {
+    short: 'Tamanho de amostra e poder', title: 'Plano de coleta — tamanho de amostra e poder',
+    desc: 'Defina quantos dados coletar antes de medir: para estimar média, proporção, Cpk ou detectar uma diferença (teste t).',
+    charts: [{ h: 280 }], run: runPlan,
+    fields: [
+      { name: 'mode', label: 'Objetivo', type: 'select', options: [['mean', 'Estimar uma média'], ['prop', 'Estimar uma proporção'], ['cap', 'Estimar o Cpk'], ['ttest', 'Detectar diferença (teste t)']] },
+      { name: 'sigma', label: 'Desvio padrão esperado (σ)', type: 'number', value: 1, show: { field: 'mode', in: ['mean', 'ttest'] } },
+      { name: 'err', label: 'Margem de erro (E)', type: 'number', value: 0.5, show: { field: 'mode', in: ['mean'] } },
+      { name: 'perr', label: 'Margem de erro (E), ex.: 0,05 = ±5 pontos', type: 'number', value: 0.05, show: { field: 'mode', in: ['prop'] } },
+      { name: 'p', label: 'Proporção esperada (0–1)', type: 'number', value: 0.5, show: { field: 'mode', in: ['prop'] } },
+      { name: 'popn', label: 'População (opcional)', type: 'number', show: { field: 'mode', in: ['prop'] } },
+      { name: 'cpk', label: 'Cpk esperado', type: 'number', value: 1.33, show: { field: 'mode', in: ['cap'] } },
+      { name: 'hw', label: 'Precisão do IC (±)', type: 'number', value: 0.1, show: { field: 'mode', in: ['cap'] } },
+      { name: 'ttype', label: 'Tipo de teste', type: 'select', options: [['1', '1 amostra'], ['2', '2 amostras']], show: { field: 'mode', in: ['ttest'] } },
+      { name: 'delta', label: 'Diferença a detectar (δ)', type: 'number', value: 1, show: { field: 'mode', in: ['ttest'] } },
+      { name: 'power', label: 'Poder desejado', type: 'number', value: 0.8, show: { field: 'mode', in: ['ttest'] } }
+    ]
+  },
+  gage: {
+    short: 'Gage R&R (ANOVA)', title: 'MSA — Gage R&R cruzado (ANOVA)',
+    desc: 'Valida o sistema de medição de dados contínuos: repetibilidade, reprodutibilidade, %Variação do estudo, %Tolerância e nº de categorias distintas (ndc). Exige estudo balanceado (peça × operador × repetição).',
+    charts: [{ h: 300 }, { h: 300 }], chartRow: true, run: runGage,
+    fields: [
+      { name: 'meas', label: 'Medição', type: 'select', kind: 'numeric' },
+      { name: 'part', label: 'Peça', type: 'select', kind: 'any' },
+      { name: 'oper', label: 'Operador', type: 'select', kind: 'any' },
+      SPEC('LIE (p/ %Tolerância)', 'lsl'), SPEC('LSE (p/ %Tolerância)', 'usl'),
+      { name: 'k', label: 'Multiplicador de σ', type: 'select', options: [['6', '6σ (99,73%)'], ['5.15', '5,15σ (99%)']] },
+      { name: 'aint', label: 'α p/ manter interação', type: 'number', value: 0.05, step: '0.01' }
+    ]
+  },
+  kappa: {
+    short: 'Concordância por atributos (Kappa)', title: 'MSA por atributos — concordância e Kappa',
+    desc: 'Para avaliações categóricas (aprova/reprova, classes de defeito): concordância dentro de cada avaliador, entre avaliadores e contra um padrão, com Kappa.',
+    charts: [{ h: 280 }], run: runKappa,
+    fields: [
+      { name: 'rating', label: 'Avaliação', type: 'select', kind: 'any' },
+      { name: 'appr', label: 'Avaliador', type: 'select', kind: 'any' },
+      { name: 'samp', label: 'Amostra', type: 'select', kind: 'any' },
+      { name: 'std', label: 'Padrão (opcional)', type: 'select', kind: 'any', optional: true }
+    ]
+  },
+  eda: {
+    short: 'Qualidade dos dados (EDA)', title: 'Análise exploratória e qualidade dos dados',
+    desc: 'Tipos de coluna, ausentes, duplicatas, constantes, valores não numéricos ignorados e outliers. Se um tipo foi detectado errado, corrija-o na tabela e tudo é recalculado.',
+    charts: [], run: runEDA, fields: []
+  },
+  desc: {
+    short: 'Estatística descritiva', title: 'Estatística descritiva com intervalos de confiança',
+    desc: 'Medidas de posição, dispersão e forma com IC (t/χ²), boxplot, normalidade e opção de estratificar por grupo.',
+    charts: [{ h: 300 }], run: runDesc,
+    fields: [
+      { name: 'col', label: 'Variável', type: 'select', kind: 'numeric' },
+      { name: 'group', label: 'Agrupar por (opcional)', type: 'select', kind: 'factor', optional: true },
+      { name: 'perc', label: 'Percentil personalizado', type: 'number', value: 90, min: 0, max: 100 }
+    ]
+  },
+  hist: {
+    short: 'Histograma', title: 'Histograma com curva normal',
+    desc: 'Distribuição empírica com a normal ajustada e testes de aderência. Nº de classes automático (Freedman-Diaconis).',
+    charts: [{ h: 320 }], run: runHist,
+    fields: [
+      { name: 'col', label: 'Variável', type: 'select', kind: 'numeric' },
+      { name: 'bins', label: 'Nº de classes', type: 'number', placeholder: 'auto', min: 3, max: 60, step: 1 }
+    ]
+  },
+  norm: {
+    short: 'Teste de normalidade', title: 'Teste de normalidade e gráfico de probabilidade',
+    desc: 'Anderson-Darling e Shapiro-Wilk com gráfico Q-Q. Verifique antes de calcular Cp/Cpk.',
+    charts: [{ h: 320 }], run: runNormal,
+    fields: [{ name: 'col', label: 'Variável', type: 'select', kind: 'numeric' }]
+  },
+  outl: {
+    short: 'Detecção de outliers', title: 'Detecção de outliers',
+    desc: 'Compara IQR (Tukey), Hampel (MAD) e Grubbs iterativo. Investigue a causa antes de excluir qualquer ponto.',
+    charts: [{ h: 300 }], run: runOutl,
+    fields: [
+      { name: 'col', label: 'Variável', type: 'select', kind: 'numeric' },
+      { name: 'kiqr', label: 'k do IQR', type: 'number', value: 1.5 },
+      { name: 'khamp', label: 'k do Hampel', type: 'number', value: 3 }
+    ]
+  },
+  strat: {
+    short: 'Estratificação e multi-vari', title: 'Estratificação e carta multi-vari',
+    desc: 'Compare a variável entre níveis de um ou dois fatores (turno, máquina, operador…) para localizar as fontes de variação.',
+    charts: [{ h: 320 }, { h: 320 }], chartRow: true, run: runStrat,
+    fields: [
+      { name: 'col', label: 'Variável (Y)', type: 'select', kind: 'numeric' },
+      { name: 'fa', label: 'Fator A', type: 'select', kind: 'factor' },
+      { name: 'fb', label: 'Fator B (opcional)', type: 'select', kind: 'factor', optional: true }
+    ]
+  },
+  pareto: {
+    short: 'Diagrama de Pareto', title: 'Diagrama de Pareto',
+    desc: 'Frequência ou soma ponderada (custo, tempo…) por categoria, com destaque dos “poucos vitais”.',
+    charts: [{ h: 320 }], run: runPareto,
+    fields: [
+      { name: 'col', label: 'Categoria', type: 'select', kind: 'factor' },
+      { name: 'weight', label: 'Ponderar por (opcional)', type: 'select', kind: 'numeric', optional: true },
+      { name: 'minpct', label: 'Agrupar categorias abaixo de (%)', type: 'number', value: 0 },
+      { name: 'cutoff', label: 'Corte dos vitais (%)', type: 'number', value: 80 }
+    ]
+  },
+  run: {
+    short: 'Run chart e testes de corrida', title: 'Gráfico de sequência (run chart) e testes de corrida',
+    desc: 'Testa padrões não aleatórios: agrupamentos, misturas, tendências e oscilações (corridas em torno da mediana e para cima/baixo).',
+    charts: [{ h: 300 }], run: runRunChart,
+    fields: [
+      { name: 'col', label: 'Variável', type: 'select', kind: 'numeric' },
+      { name: 'order', label: 'Ordenar por (tempo)', type: 'select', kind: 'order', optional: true }
+    ]
+  },
+  ctrl: {
+    short: 'Cartas de controle', title: 'Cartas de controle com testes de causas especiais',
+    desc: 'I-MR, X̄-R, X̄-S (contínuos) e P, NP, C, U (atributos) com os oito testes de Nelson. Confirme a estabilidade antes de calcular a capabilidade.',
+    charts: [{ h: 320 }, { h: 220 }], run: runCtrl,
+    fields: [
+      { name: 'chart', label: 'Tipo de carta', type: 'select', options: [['imr', 'I-MR (individuais)'], ['xbarr', 'X̄-R (subgrupos)'], ['xbars', 'X̄-S (subgrupos)'], ['p', 'P (proporção de defeituosos)'], ['np', 'NP (nº de defeituosos)'], ['c', 'C (nº de defeitos)'], ['u', 'U (defeitos por unidade)']] },
+      { name: 'col', label: 'Variável / contagem', type: 'select', kind: 'numeric' },
+      { name: 'subgroup', label: 'Tamanho do subgrupo', type: 'number', value: 5, step: 1, min: 2, max: 25, show: { field: 'chart', in: ['xbarr', 'xbars'] } },
+      { name: 'size_col', label: 'Coluna do tamanho da amostra', type: 'select', kind: 'numeric', optional: true, show: { field: 'chart', in: ['p', 'np', 'u'] } },
+      { name: 'size_const', label: 'ou tamanho constante', type: 'number', placeholder: 'ex.: 100', show: { field: 'chart', in: ['p', 'np', 'u'] } },
+      { name: 'order', label: 'Ordenar por (tempo)', type: 'select', kind: 'order', optional: true },
+      { name: 'zones', label: 'Zonas 1σ/2σ', type: 'check', checkLabel: 'mostrar' },
+      { name: 'rules', label: 'Testes de Nelson', type: 'multi', wide: true, options: Object.keys(RULE_TXT).map(k => [k, RULE_TXT[k]]), checked: ['1', '2', '5'] }
+    ]
+  },
+  cap: {
+    short: 'Capabilidade (normal)', title: 'Análise de capabilidade — dados normais',
+    desc: 'Cp/Cpk (dentro), Pp/Ppk (global), Cpm, PPM observado e esperado, Z.Bench, nível sigma e ICs, com verificação de normalidade e estabilidade.',
+    charts: [{ h: 340 }], run: runCap,
+    fields: [
+      { name: 'col', label: 'Variável', type: 'select', kind: 'numeric' },
+      SPEC('LIE', 'lsl'), SPEC('LSE', 'usl'), SPEC('Alvo', 'target'),
+      { name: 'subgroup', label: 'Tamanho do subgrupo', type: 'number', value: 1, step: 1, min: 1, max: 50 },
+      { name: 'order', label: 'Ordenar por (tempo)', type: 'select', kind: 'order', optional: true },
+      { name: 'unit', label: 'Unidade', type: 'text', placeholder: 'ex.: mm' }
+    ]
+  },
+  capnn: {
+    short: 'Capabilidade (não normal)', title: 'Análise de capabilidade — dados não normais',
+    desc: 'Box-Cox ou distribuições ajustadas (Weibull, Lognormal, Gamma, Johnson SU) com Pp/Ppk pelo método dos percentis, PPM esperado e nível sigma.',
+    charts: [{ h: 340 }], run: runCapNN,
+    fields: [
+      { name: 'col', label: 'Variável', type: 'select', kind: 'numeric' },
+      SPEC('LIE', 'lsl'), SPEC('LSE', 'usl'),
+      { name: 'method', label: 'Método', type: 'select', options: [['auto', 'Melhor distribuição (AIC)'], ['boxcox', 'Transformação Box-Cox'], ['weibull', 'Weibull'], ['lognorm', 'Lognormal'], ['gamma', 'Gamma'], ['johnsonsu', 'Johnson SU']] },
+      { name: 'order', label: 'Ordenar por (tempo)', type: 'select', kind: 'order', optional: true },
+      { name: 'unit', label: 'Unidade', type: 'text', placeholder: 'ex.: mm' }
+    ]
+  },
+  attr: {
+    short: 'Atributos: DPMO, sigma, RTY', title: 'Capabilidade por atributos — DPMO, nível sigma e RTY',
+    desc: 'Para defeituosos (binário), defeitos por unidade (contagem) ou rendimento acumulado do processo (RTY) por etapa.',
+    charts: [{ h: 280 }], run: runAttr,
+    fields: [
+      { name: 'mode', label: 'Tipo de dado', type: 'select', options: [['defective', 'Defeituosos (aprovado/reprovado)'], ['defects', 'Defeitos por unidade (contagem)'], ['rty', 'RTY por etapas']] },
+      { name: 'col', label: 'Coluna de resultado', type: 'select', kind: 'any', show: { field: 'mode', in: ['defective'] } },
+      { name: 'value', label: 'Valor que indica defeito', type: 'select', options: [], show: { field: 'mode', in: ['defective'] } },
+      { name: 'dcol', label: 'Defeitos por unidade', type: 'select', kind: 'numeric', show: { field: 'mode', in: ['defects'] } },
+      { name: 'opps', label: 'Oportunidades por unidade', type: 'number', value: 1, min: 1, show: { field: 'mode', in: ['defects'] } },
+      { name: 'steps', label: 'Etapas (nome; unidades; aprovadas) — uma por linha', type: 'textarea', wide: true, show: { field: 'mode', in: ['rty'] }, value: 'Corte; 1000; 980\nSolda; 980; 930\nTeste; 930; 900' }
+    ]
+  }
+};
+
+const GROUPS = [
+  { title: '1 · Plano de coleta', tools: ['plan'] },
+  { title: '2 · Sistema de medição (MSA)', tools: ['gage', 'kappa'] },
+  { title: '3 · Dados e distribuição', tools: ['eda', 'desc', 'hist', 'norm', 'outl', 'strat', 'pareto'] },
+  { title: '4 · Estabilidade no tempo', tools: ['run', 'ctrl'] },
+  { title: '5 · Capabilidade e linha de base', tools: ['cap', 'capnn', 'attr'] }
+];
+
+/* ================= Construção da interface ================= */
+function fieldHTML(pid, f) {
+  const id = `${pid}-${f.name}`;
+  let ctl = '';
+  if (f.type === 'select') {
+    const cls = f.kind ? ` class="data-select" data-kind="${f.kind}" data-optional="${f.optional ? 1 : 0}"` : '';
+    ctl = `<select id="${id}"${cls}>${(f.options || []).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>`;
+  } else if (f.type === 'number') {
+    ctl = `<input type="number" id="${id}" step="${f.step || 'any'}"${f.min != null ? ` min="${f.min}"` : ''}${f.max != null ? ` max="${f.max}"` : ''} value="${f.value != null ? f.value : ''}" placeholder="${f.placeholder || ''}">`;
+  } else if (f.type === 'text') {
+    ctl = `<input type="text" id="${id}" value="${f.value || ''}" placeholder="${f.placeholder || ''}">`;
+  } else if (f.type === 'check') {
+    ctl = `<label class="chk"><input type="checkbox" id="${id}"${f.checked ? ' checked' : ''}> ${f.checkLabel || ''}</label>`;
+  } else if (f.type === 'multi') {
+    ctl = `<div class="multi" id="${id}">${f.options.map(([v, l]) => `<label class="chk"><input type="checkbox" value="${v}"${(f.checked || []).includes(v) ? ' checked' : ''}> ${l}</label>`).join('')}</div>`;
+  } else if (f.type === 'textarea') {
+    ctl = `<textarea id="${id}" rows="4" spellcheck="false">${f.value || ''}</textarea>`;
+  }
+  const show = f.show ? ` data-show-field="${f.show.field}" data-show-in="${f.show.in.join(',')}"` : '';
+  return `<div class="field${f.wide ? ' wide' : ''}"${show}><label for="${f.type === 'multi' ? '' : id}">${f.label}</label>${ctl}</div>`;
+}
+
+function panelHTML(id, t) {
+  const charts = (t.charts || []).map((c, i) => `<div class="chart-box" style="height:${c.h || 300}px;display:none"><canvas id="${id}-chart-${i + 1}"></canvas></div>`);
+  const chartHTML = t.chartRow ? `<div class="chart-row">${charts.join('')}</div>` : charts.join('');
+  return `<section class="tool-panel" id="panel-${id}" style="display:none">
+    <h4>${t.title}</h4><div class="desc">${t.desc}</div>
+    <div class="controls-row">${t.fields.map(f => fieldHTML(id, f)).join('')}<button type="button" class="btn" data-run="${id}">Executar</button></div>
+    <div class="metrics-grid" id="${id}-metrics"></div>
+    <div class="alerts" id="${id}-alerts"></div>
+    ${chartHTML}
+    <div id="${id}-table-container"></div>
+    <div id="${id}-table2-container"></div>
+    <div class="interp-box" id="${id}-interp"></div>
+  </section>`;
+}
+
+function buildUI() {
+  const list = $('checklist'), host = $('tool-panels');
+  GROUPS.forEach(g => {
+    list.insertAdjacentHTML('beforeend', `<h3 class="cl-group">${g.title}</h3>`);
+    g.tools.forEach(id => {
+      list.insertAdjacentHTML('beforeend', `<label class="checklist-item"><input type="checkbox" data-target="panel-${id}"><span>${TOOLS[id].short}</span></label>`);
+      host.insertAdjacentHTML('beforeend', panelHTML(id, TOOLS[id]));
+    });
+  });
+  document.querySelectorAll('.checklist-item input').forEach(cb => cb.addEventListener('change', () => {
+    const p = $(cb.dataset.target);
+    if (p) { p.style.display = cb.checked ? 'block' : 'none'; if (cb.checked) applyVisibility(p); }
+    const n = document.querySelectorAll('.checklist-item input:checked').length;
+    const e = $('cl-count'); if (e) e.textContent = n ? `${n} análise(s) selecionada(s)` : 'Selecione as análises';
+  }));
+  host.querySelectorAll('.tool-panel').forEach(p => { applyVisibility(p); p.addEventListener('change', () => applyVisibility(p)); });
+}
+
+function applyVisibility(panel) {
+  const pid = panel.id.replace('panel-', '');
+  panel.querySelectorAll('.field[data-show-field]').forEach(f => {
+    const src = $(`${pid}-${f.dataset.showField}`);
+    const ok = src && f.dataset.showIn.split(',').includes(src.value);
+    f.classList.toggle('hidden', !ok);
+  });
+}
+
+/* ================= Execução ================= */
+async function runTool(id, btn) {
+  const spec = TOOLS[id];
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Calculando…';
+  clearPanel(id);
+  try { await spec.run(id); }
+  catch (err) { console.warn(err); setAlerts(id, [{ level: 'bad', text: err && err.message ? err.message : String(err) }]); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
+function refreshAttrValues() {
+  const colSel = $('attr-col'), valSel = $('attr-value');
+  if (!colSel || !valSel || !colSel.value || !state.rawCols[colSel.value]) { if (valSel) valSel.innerHTML = ''; return; }
+  const counts = {};
+  state.rawCols[colSel.value].forEach(v => { if (!isMissingToken(v)) counts[v] = (counts[v] || 0) + 1; });
+  const vals = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })).slice(0, 60);
+  const prev = valSel.value;
+  valSel.innerHTML = vals.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)} (${counts[v]})</option>`).join('');
+  if (prev && vals.includes(prev)) { valSel.value = prev; return; }
+  const guess = vals.find(v => /^(nok|n[ãa]o ok|defeit|defect|ruim|falha|fail|reprov|bad|ng|1)$/i.test(v)) ||
+    vals.slice().sort((a, b) => counts[a] - counts[b])[0];
+  if (guess !== undefined) valSel.value = guess;
+}
+
+function sampleCSV() {
+  let s = 12345;
+  const rnd = () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
+  const lines = ['Lote;DataHora;Turno;Maquina;Espessura_mm;Peso_g;Defeito;Resultado'];
+  const defs = ['Risco', 'Trinca', 'Rebarba', 'Furo', 'Outros'];
+  const t0 = new Date(Date.UTC(2026, 0, 5, 6, 0, 0));
+  for (let i = 0; i < 150; i++) {
+    const t = new Date(t0.getTime() + i * 3600000 * 2);
+    const turno = ['A', 'B', 'C'][i % 3], maq = ['M1', 'M2'][Math.floor(rnd() * 2)];
+    const esp = 10 + 0.02 * (maq === 'M2' ? 1 : 0) * 5 + gauss() * 0.11 + (turno === 'C' ? 0.05 : 0);
+    const peso = 250 + gauss() * 3.2;
+    const bad = rnd() < 0.08;
+    const iso = t.toISOString().slice(0, 19).replace('T', ' ');
+    lines.push([i + 1, iso, turno, maq, esp.toFixed(3).replace('.', ','), peso.toFixed(1).replace('.', ','), bad ? defs[Math.floor(Math.pow(rnd(), 2) * defs.length)] : '', bad ? 'NOK' : 'OK'].join(';'));
+  }
+  return lines.join('\n');
+}
+
+/* ================= Upload e eventos ================= */
+function isExcelFile(file) {
+  return /\.(xlsx|xls)$/i.test(file.name);
+}
+
+function readFile(file) {
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const buf = ev.target.result;
+      if (isExcelFile(file)) {
+        const wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: false });
+        const sheetName = wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const csvText = XLSX.utils.sheet_to_csv(ws, { FS: ';', blankrows: false });
+        ingestCSV(csvText, file.name);
+        if (wb.SheetNames.length > 1) {
+          const b = $('status-banner');
+          if (b) b.textContent += ` (Excel com ${wb.SheetNames.length} planilhas — usada apenas "${sheetName}"; para usar outra, salve-a separadamente.)`;
+        }
+        return;
+      }
+      let text;
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (e) { text = new TextDecoder('windows-1252').decode(buf); }
+      ingestCSV(text, file.name);
+    } catch (err) { showBanner('error', err.message); }
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function setupEvents() {
+  const zone = $('upload-zone'), input = $('csvFile');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files.length) readFile(e.dataTransfer.files[0]); });
+  input.addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); input.value = ''; });
+  $('btn-sample').addEventListener('click', () => { try { ingestCSV(sampleCSV(), 'dados_exemplo.csv'); } catch (e) { showBanner('error', e.message); } });
+  $('set-decimal').addEventListener('change', () => reclassify(true));
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-run]');
+    if (b && !b.disabled) runTool(b.dataset.run, b);
+  });
+  document.addEventListener('change', e => {
+    const t = e.target;
+    if (t.matches && t.matches('select.type-override')) {
+      state.overrides[t.dataset.col] = t.value;
+      reclassify(false);
+      const b = document.querySelector('[data-run="eda"]');
+      if (b) runTool('eda', b);
+    }
+    if (t.id === 'attr-col') refreshAttrValues();
+  });
+  const rb = $('btn-report'); if (rb) rb.addEventListener('click', openReportModal);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildUI();
+  setupEvents();
+  enginePromise = initPyodideEngine();
+  enginePromise.catch(err => showBanner('error', 'Motor Python indisponível: ' + (err && err.message ? err.message : err)));
+});
+
+/* ================= Ferramentas — grupo A ================= */
+const tone3 = (v, ok, warn) => (v === null || v === undefined ? '' : v < ok ? 'ok' : v <= warn ? 'warn' : 'bad');
+
+/* ---------- Plano de coleta ---------- */
+async function runPlan(pid) {
+  const mode = fv(pid, 'mode');
+  const r = await callPy('py_plan', { mode, alpha: getAlpha(), sigma: fnum(pid, 'sigma'), err: mode === 'prop' ? fnum(pid, 'perr') : fnum(pid, 'err'), p: fnum(pid, 'p'), popn: fnum(pid, 'popn'), cpk: fnum(pid, 'cpk'), hw: fnum(pid, 'hw'), delta: fnum(pid, 'delta'), power: fnum(pid, 'power'), ttype: fv(pid, 'ttype') });
+  setMetrics(pid, [
+    ['Tamanho de amostra' + (r.two ? ' por grupo' : ''), fmtInt(r.n), 'ok'],
+    r.two ? ['Total (2 grupos)', fmtInt(r.n_total)] : null,
+    mode === 'ttest' ? ['Poder atingido', fmt(r.power_at_n, 3)] : null,
+    ['Confiança', confPct()]
+  ]);
+  const pts = r.curve.map(([x, y]) => ({ x, y }));
+  mkChart(pid + '-chart-1', {
+    type: 'scatter',
+    data: { datasets: [
+      { label: r.y_label, data: pts, showLine: true, borderColor: C.teal, backgroundColor: C.teal, pointRadius: 2, tension: 0.2 },
+      { label: 'Meta', data: [{ x: pts[0].x, y: r.target }, { x: pts[pts.length - 1].x, y: r.target }], showLine: true, borderColor: C.red, borderDash: [6, 4], pointRadius: 0 },
+      { label: 'n necessário', data: [{ x: r.n, y: r.target }], showLine: false, backgroundColor: C.orange, borderColor: C.orange, pointRadius: 6 }
+    ] },
+    options: { plugins: { legend: { position: 'bottom' } }, scales: { x: { type: 'linear', title: axisTitle(r.x_label) }, y: { title: axisTitle(r.y_label) } } }
+  });
+  const tips = {
+    mean: 'A amostra cresce com o quadrado de σ e com o inverso do quadrado da margem de erro: dobrar a precisão exige ~4× mais dados.',
+    prop: 'A proporção 0,5 é o pior caso (maior n). Se houver estimativa prévia de p, use-a para reduzir a amostra.',
+    cap: 'Regra prática: ≥ 100 observações individuais (ou ≥ 25 subgrupos de 4–5 peças) coletadas em condições normais, cobrindo turnos, lotes e operadores.',
+    ttest: 'Poder é a probabilidade de detectar a diferença δ se ela existir. Poder de 80% é o mínimo usual; 90% para decisões críticas.'
+  };
+  interp(pid, 'info', 'Amostra dimensionada', [
+    `<strong>n = ${fmtInt(r.n)}</strong>${r.two ? ' por grupo' : ''} — ${escapeHtml(r.formula)}.`,
+    tips[mode],
+    'Para o estudo de MSA: ≥ 10 peças cobrindo toda a variação do processo, ≥ 3 operadores e ≥ 2–3 repetições (atributos: ≥ 30 amostras e ≥ 2 avaliadores).'
+  ]);
+}
+
+/* ---------- MSA: Gage R&R ---------- */
+async function runGage(pid) {
+  requireData();
+  const meas = fv(pid, 'meas');
+  const r = await callPy('py_gage', { meas, part: fv(pid, 'part'), oper: fv(pid, 'oper'), lsl: fnum(pid, 'lsl'), usl: fnum(pid, 'usl'), k: fv(pid, 'k'), aint: fnum(pid, 'aint') });
+  const grr = r.comps[0], rep = r.comps[1], reprod = r.comps[2];
+  const cls = grrClass(grr.pct_sv, r.ndc);
+  setMetrics(pid, [
+    ['%Variação do estudo (Gage R&R)', fmt(grr.pct_sv, 1) + '%', tone3(grr.pct_sv, 10, 30)],
+    ['%Contribuição', fmt(grr.pct_contrib, 2) + '%', tone3(grr.pct_contrib, 1, 9)],
+    grr.pct_tol !== null ? ['%Tolerância', fmt(grr.pct_tol, 1) + '%', tone3(grr.pct_tol, 10, 30)] : null,
+    ['Categorias distintas (ndc)', r.ndc === null ? '—' : String(r.ndc), r.ndc === null ? '' : (r.ndc >= 5 ? 'ok' : r.ndc >= 2 ? 'warn' : 'bad')],
+    ['Estudo', `${r.P}×${r.O}×${r.R}`]
+  ]);
+  const main = r.comps.filter(c => !c.indent && c.name !== 'Variação total');
+  const ds = [{ label: '%Contribuição', data: main.map(c => c.pct_contrib), backgroundColor: C.teal }, { label: '%Variação do estudo', data: main.map(c => c.pct_sv), backgroundColor: C.orange }];
+  if (grr.pct_tol !== null) ds.push({ label: '%Tolerância', data: main.map(c => c.pct_tol), backgroundColor: C.purple });
+  mkChart(pid + '-chart-1', { type: 'bar', data: { labels: main.map(c => c.name), datasets: ds }, options: { plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Componentes da variação' } }, scales: { y: { beginAtZero: true, title: axisTitle('%') } } } });
+  const sets = [];
+  r.by_op.forEach((o, i) => {
+    const col = PALETTE[i % PALETTE.length];
+    sets.push({ label: '· ' + o.name, data: o.points.map(([x, y]) => ({ x, y })), showLine: false, backgroundColor: col + '66', borderColor: col + '66', pointRadius: 3 });
+    sets.push({ label: o.name, data: o.means.map((y, x) => ({ x, y })), showLine: true, borderColor: col, backgroundColor: col, pointRadius: 3, tension: 0 });
+  });
+  mkChart(pid + '-chart-2', {
+    type: 'scatter', data: { datasets: sets },
+    options: { plugins: { legend: { position: 'bottom', labels: { filter: it => !it.text.startsWith('·') } }, title: { display: true, text: 'Medições por peça e operador' } },
+      scales: { x: { type: 'linear', min: -0.5, max: r.P - 0.5, ticks: { stepSize: 1, callback: v => (Number.isInteger(v) && r.parts[v] !== undefined ? r.parts[v] : '') }, title: axisTitle('Peça') }, y: { title: axisTitle(meas) } } }
+  });
+  const rows = r.comps.map(c => [(c.indent ? '&nbsp;&nbsp;&nbsp;' : '') + escapeHtml(c.name), fmt(c.var, 5), fmt(c.sd, 4), fmt(c.sv, 4), fmt(c.pct_contrib, 2), fmt(c.pct_sv, 2), c.pct_tol === null ? '—' : fmt(c.pct_tol, 2)]);
+  setTable(pid, '<h5>Componentes de variância</h5>' + tbl(['Fonte', 'Variância', 'Desvio padrão', `Var. estudo (${fmt(r.k, 2)}σ)`, '%Contribuição', '%Var. estudo', '%Tolerância'], rows));
+  const an = t => tbl(['Fonte', 'GL', 'SQ', 'QM', 'F', 'p'], t.map(x => [escapeHtml(x[0]), fmtInt(x[1]), fmt(x[2], 4), x[3] === null ? '—' : fmt(x[3], 4), x[4] === null ? '—' : fmt(x[4], 3), x[5] === null ? '—' : fmtP(x[5])]));
+  setTable(pid, '<h5>ANOVA de dois fatores' + (r.interaction_kept ? '' : ' (com interação)') + '</h5>' + an(r.anova) +
+    (r.anova_reduced ? '<h5>ANOVA sem a interação Peça × Operador</h5>' + an(r.anova_reduced) : ''), '2');
+  const opP = (r.anova_reduced || r.anova).find(x => x[0] === 'Operador');
+  interp(pid, cls.lvl, cls.txt, [
+    `%Variação do estudo = <strong>${fmt(grr.pct_sv, 1)}%</strong> (critério AIAG: &lt; 10% aceitável; 10–30% marginal; &gt; 30% inaceitável). %Contribuição = ${fmt(grr.pct_contrib, 2)}% (&lt; 1% bom; &gt; 9% inaceitável).`,
+    grr.pct_tol !== null ? `%Tolerância = ${fmt(grr.pct_tol, 1)}%: parcela da tolerância consumida pelo erro de medição (aplique o mesmo critério).` : 'Informe LIE e LSE para obter a %Tolerância — o que importa para decidir aprovação/reprovação de peças.',
+    r.ndc !== null ? `ndc = ${r.ndc}: ${r.ndc >= 5 ? 'o sistema distingue categorias suficientes de variação do processo (≥ 5).' : 'o sistema separa poucas categorias do processo (deveria ser ≥ 5) — não é adequado para controle do processo.'}` : null,
+    rep.pct_contrib >= reprod.pct_contrib ? `A <strong>repetibilidade</strong> (instrumento/método) domina o erro (${fmt(rep.pct_contrib, 1)}% vs ${fmt(reprod.pct_contrib, 1)}% de reprodutibilidade): verifique resolução, fixação e método.` : `A <strong>reprodutibilidade</strong> (operadores) domina o erro (${fmt(reprod.pct_contrib, 1)}% vs ${fmt(rep.pct_contrib, 1)}%): padronize o método e treine os operadores.`,
+    r.interaction_kept ? `A interação Peça × Operador é significativa (p = ${fmtP(r.p_interaction)}): operadores medem certas peças de forma diferente.` : `A interação Peça × Operador não é significativa (p = ${fmtP(r.p_interaction)} &gt; ${fmt(r.aint, 2)}) e foi removida do modelo.`,
+    opP && opP[5] !== null ? `Diferença entre operadores: p = ${fmtP(opP[5])} (${opP[5] < getAlpha() ? 'significativa' : 'não significativa'}).` : null,
+    'A conclusão só vale se as peças do estudo cobrem a faixa real de variação do processo.'
+  ]);
+  msaResults['gage:' + meas] = { kind: 'Gage R&R (ANOVA)', variable: meas, result: `%VE = ${fmt(grr.pct_sv, 1)}% · %Contrib = ${fmt(grr.pct_contrib, 2)}%` + (grr.pct_tol !== null ? ` · %Tol = ${fmt(grr.pct_tol, 1)}%` : '') + ` · ndc = ${r.ndc}`, criterion: '%VE < 10% e ndc ≥ 5', verdict: cls.txt, lvl: cls.lvl };
+}
+
+/* ---------- MSA: atributos ---------- */
+async function runKappa(pid) {
+  requireData();
+  const r = await callPy('py_kappa', { rating: fv(pid, 'rating'), appr: fv(pid, 'appr'), samp: fv(pid, 'samp'), std: fv(pid, 'std'), alpha: getAlpha() });
+  const kc = k => { const c = kappaClass(k); return c ? badge(c.lvl, c.txt) : '—'; };
+  const line = x => [escapeHtml(x.name || 'Todos'), fmtInt(x.n), fmtInt(x.agree), fmt(x.pct, 1) + '%', `${fmt(x.ci[0], 1)}–${fmt(x.ci[1], 1)}%`, fmt(x.kappa, 3), kc(x.kappa)];
+  const H = ['Avaliador', 'Amostras', 'Concordantes', '% concordância', `IC ${confPct()}`, 'Kappa', 'Avaliação'];
+  let html = '<h5>Dentro de cada avaliador (repetibilidade)</h5>' + (r.reps >= 2 ? tbl(H, r.within.map(line)) : '<p class="muted">Cada avaliador julgou cada amostra apenas uma vez: repetibilidade não avaliável.</p>');
+  html += '<h5>Entre avaliadores (reprodutibilidade)</h5>' + tbl(H, [Object.assign({ name: 'Todos' }, r.between)].map(line));
+  if (r.has_std) {
+    html += '<h5>Cada avaliador × padrão</h5>' + tbl(H, r.vs_std.map(line));
+    html += '<h5>Todos os avaliadores × padrão</h5>' + tbl(H, [Object.assign({ name: 'Todos' }, r.all_vs_std)].map(line));
+  }
+  setTable(pid, html);
+  const worst = [r.between.kappa].concat(r.vs_std.map(x => x.kappa), r.all_vs_std ? [r.all_vs_std.kappa] : [], r.reps >= 2 ? r.within.map(x => x.kappa) : []).filter(v => v !== null && v !== undefined);
+  const minK = worst.length ? Math.min(...worst) : null;
+  const cls = kappaClass(minK) || { lvl: 'info', txt: 'sem avaliação' };
+  setMetrics(pid, [
+    ['Amostras × avaliadores × rep.', `${r.n_samples}×${r.n_appraisers}×${r.reps}`],
+    ['Concordância entre avaliadores', fmt(r.between.pct, 1) + '%', tone3(100 - r.between.pct, 10, 30)],
+    ['Kappa entre avaliadores', fmt(r.between.kappa, 3), (kappaClass(r.between.kappa) || {}).lvl],
+    r.has_std ? ['Concordância vs padrão', fmt(r.all_vs_std.pct, 1) + '%', tone3(100 - r.all_vs_std.pct, 10, 30)] : null,
+    r.has_std ? ['Kappa vs padrão', fmt(r.all_vs_std.kappa, 3), (kappaClass(r.all_vs_std.kappa) || {}).lvl] : null
+  ]);
+  const labels = r.within.map(x => x.name);
+  const ds = [{ label: 'Dentro do avaliador', data: r.within.map(x => x.pct), backgroundColor: C.teal }];
+  if (r.has_std) ds.push({ label: 'Contra o padrão', data: r.vs_std.map(x => x.pct), backgroundColor: C.orange });
+  mkChart(pid + '-chart-1', { type: 'bar', data: { labels, datasets: ds }, options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { min: 0, max: 100, title: axisTitle('% de concordância') } } } });
+  interp(pid, cls.lvl, cls.txt, [
+    `Menor Kappa observado: <strong>${fmt(minK, 3)}</strong>. Referência (AIAG): κ ≥ 0,90 excelente; 0,75–0,90 bom; &lt; 0,75 indica que o sistema precisa melhorar; &lt; 0,40 é inadequado.`,
+    `Entre avaliadores: ${fmt(r.between.pct, 1)}% das amostras receberam a mesma avaliação de todos (IC ${fmt(r.between.ci[0], 1)}–${fmt(r.between.ci[1], 1)}%).`,
+    r.has_std ? `Contra o padrão: ${fmt(r.all_vs_std.pct, 1)}% das amostras foram sempre classificadas corretamente por todos.` : 'Sem coluna de padrão não é possível medir a exatidão (viés) das classificações.',
+    r.n_samples < 30 ? `Com apenas ${r.n_samples} amostras os intervalos são largos; recomenda-se ≥ 30 amostras, incluindo casos limítrofes.` : null,
+    'Ações usuais: critérios de decisão claros, amostras-padrão físicas/fotográficas e treinamento dos avaliadores com pior desempenho.'
+  ]);
+  msaResults['kappa'] = { kind: 'Concordância por atributos', variable: fv(pid, 'rating'), result: `Concordância entre avaliadores ${fmt(r.between.pct, 1)}% · κ = ${fmt(r.between.kappa, 3)}` + (r.has_std ? ` · vs padrão ${fmt(r.all_vs_std.pct, 1)}% (κ = ${fmt(r.all_vs_std.kappa, 3)})` : ''), criterion: 'κ ≥ 0,75 (ideal ≥ 0,90)', verdict: cls.txt, lvl: cls.lvl };
+}
+
+/* ---------- EDA ---------- */
+async function runEDA(pid) {
+  requireData();
+  const r = await callPy('py_eda', { coerced: state.coerced });
+  setMetrics(pid, [
+    ['Linhas', fmtInt(r.rows)], ['Colunas', fmtInt(r.cols)], ['Numéricas', String(r.counts.numeric)], ['Categóricas', String(r.counts.categorical)],
+    ['Data/hora', String(r.counts.datetime)], ['ID / sequência', String(r.counts.id)],
+    ['Ausentes', `${fmtInt(r.missing)} (${fmt(r.pct_missing, 1)}%)`, r.missing ? 'warn' : 'ok'], ['Linhas duplicadas', fmtInt(r.duplicates), r.duplicates ? 'warn' : 'ok']
+  ]);
+  setAlerts(pid, r.alerts.length ? r.alerts : [{ level: 'ok', text: 'Nenhum problema de qualidade detectado.' }]);
+  const sel = c => `<select class="type-override" data-col="${escapeHtml(c.col)}">` + Object.keys(TYPE_LABEL).map(t => `<option value="${t}"${t === c.type ? ' selected' : ''}>${TYPE_LABEL[t]}</option>`).join('') + '</select>';
+  const rows = r.summary.map(c => [escapeHtml(c.col), sel(c), `${fmtInt(c.missing)} (${fmt(c.pct_missing, 1)}%)`, fmtInt(c.unique),
+    c.type === 'numeric' ? fmtSig(c.min, 5) : '—', c.type === 'numeric' ? fmtSig(c.mean, 5) : '—', c.type === 'numeric' ? fmtSig(c.max, 5) : '—',
+    c.outliers === null ? '—' : fmtInt(c.outliers), c.coerced ? fmtInt(c.coerced) : '—', (c.type === 'numeric' || c.type === 'id') ? (state.decimals[c.col] === ',' ? 'vírgula' : 'ponto') : '—']);
+  setTable(pid, tbl(['Coluna', 'Tipo (editável)', 'Ausentes', 'Únicos', 'Mín', 'Média', 'Máx', 'Fora do boxplot', 'Não numéricos ignorados', 'Decimal'], rows));
+  const bad = r.alerts.filter(a => a.level === 'bad').length;
+  interp(pid, bad ? 'bad' : (r.alerts.length ? 'warn' : 'ok'), bad ? 'Corrigir antes de analisar' : (r.alerts.length ? 'Há pontos de atenção' : 'Dados prontos para análise'), [
+    `${fmtInt(r.rows)} registros e ${r.cols} variáveis (${r.counts.numeric} numéricas).`,
+    'Colunas de lote/sequência são tratadas como ID e não entram como variável de análise; use-as como coluna de ordem/tempo.',
+    'Se algum tipo estiver incorreto (ex.: código de máquina numérico que deveria ser categoria), altere-o na tabela.',
+    'Valores ausentes e não numéricos são excluídos pontualmente em cada análise — confira se não escondem um problema de coleta.'
+  ]);
+}
+
+/* ---------- Descritiva ---------- */
+async function runDesc(pid) {
+  requireData();
+  const col = fv(pid, 'col');
+  const r = await callPy('py_desc', { col, group: fv(pid, 'group'), perc: fnum(pid, 'perc'), alpha: getAlpha() });
+  const o = r.overall;
+  setMetrics(pid, [
+    ['N', fmtInt(o.n)], ['Média', fmtSig(o.mean, 5)], ['Mediana', fmtSig(o.median, 5)], ['Desvio padrão', fmtSig(o.std, 4)],
+    ['CV', o.cv === null ? 'n/d' : fmt(o.cv, 1) + '%'], ['Mínimo', fmtSig(o.min, 5)], ['Máximo', fmtSig(o.max, 5)], ['Q1', fmtSig(o.q1, 5)], ['Q3', fmtSig(o.q3, 5)],
+    ['IQR', fmtSig(o.iqr, 4)], [`P${fmt(r.perc, 0)}`, fmtSig(o.p_custom, 5)], ['Assimetria', fmt(o.skew, 3)], ['Curtose (excesso)', fmt(o.kurt, 3)],
+    o.mode !== null ? ['Moda', fmtSig(o.mode, 5)] : null, ['Ausentes', fmtInt(o.missing)]
+  ]);
+  const boxes = [Object.assign({ name: r.groups.length ? 'Geral' : col }, o.box)].concat(r.groups.map(g => Object.assign({ name: g.name }, g.box)));
+  drawBox(pid + '-chart-1', boxes, col);
+  const ci = a => (a ? `${fmtSig(a[0], 5)} a ${fmtSig(a[1], 5)}` : '—');
+  setTable(pid, `<h5>Estimativas e intervalos de confiança (${confPct()})</h5>` + tbl(['Estatística', 'Estimativa', 'Intervalo de confiança'], [
+    ['Média (IC t)', fmtSig(o.mean, 5), ci(o.ci_mean)], ['Mediana (IC por postos)', fmtSig(o.median, 5), ci(o.ci_median)], ['Desvio padrão (IC χ²)', fmtSig(o.std, 5), ci(o.ci_sd)]]));
+  if (r.groups.length) {
+    setTable(pid, `<h5>Por grupo</h5>` + tbl(['Grupo', 'N', 'Média', 'Desvio padrão', 'Mediana', 'Mín', 'Máx', `IC ${confPct()} da média`],
+      r.groups.map(g => [escapeHtml(g.name), fmtInt(g.n), fmtSig(g.mean, 5), fmtSig(g.std, 4), fmtSig(g.median, 5), fmtSig(g.min, 5), fmtSig(g.max, 5), ci(g.ci_mean)])), '2');
+  }
+  const nm = r.normality;
+  interp(pid, nm.normal === false ? 'warn' : 'info', nm.normal === false ? 'Dados não normais' : 'Resumo', [
+    escapeHtml(normText2(nm, r.alpha)),
+    o.skew !== null && Math.abs(o.skew) > 1 ? `Assimetria forte (${fmt(o.skew, 2)}): prefira a mediana e considere transformação ou capabilidade não normal.` : null,
+    o.cv !== null && o.cv > 30 ? `CV de ${fmt(o.cv, 1)}%: variação relativa alta.` : null,
+    o.box.n_out ? `${o.box.n_out} ponto(s) fora das cercas do boxplot — veja “Detecção de outliers”.` : null,
+    r.groups.length ? 'Compare os grupos no boxplot; para testar diferenças use a “Estratificação e multi-vari”.' : null
+  ]);
+}
+
+/* ---------- Histograma ---------- */
+async function runHist(pid) {
+  requireData();
+  const col = fv(pid, 'col');
+  const r = await callPy('py_hist', { col, bins: fnum(pid, 'bins'), alpha: getAlpha() });
+  drawHist(pid + '-chart-1', r, { curves: r.curve.length ? [{ points: r.curve, color: C.orange, label: 'Normal ajustada' }] : [] }, col);
+  const nm = r.normality;
+  setMetrics(pid, [['N', fmtInt(r.n)], ['Média', fmtSig(r.mean, 5)], ['Desvio padrão', fmtSig(r.std, 4)], ['Classes', String(r.nbins)],
+    ['Assimetria', fmt(nm.skew, 3)], ['Curtose (excesso)', fmt(nm.kurt, 3)], ['Anderson-Darling p', fmtP(nm.ad_p), nm.normal === null ? '' : (nm.normal ? 'ok' : 'bad')], ['Shapiro-Wilk p', fmtP(nm.sw_p)]]);
+  const sk = nm.skew;
+  interp(pid, nm.normal === false ? 'warn' : 'ok', nm.normal === false ? 'Distribuição não normal' : 'Compatível com a normal', [
+    escapeHtml(normText2(nm, getAlpha())),
+    sk === null ? null : (Math.abs(sk) < 0.5 ? 'Forma aproximadamente simétrica.' : `Distribuição assimétrica à ${sk > 0 ? 'direita (cauda longa para valores altos)' : 'esquerda (cauda longa para valores baixos)'}.`),
+    'Com amostras grandes (n > 200) os testes rejeitam desvios pequenos e irrelevantes: julgue também o gráfico Q-Q.',
+    'Histogramas bimodais ou com “degraus” sugerem mistura de fontes (turnos, máquinas) — estratifique.'
+  ]);
+}
+
+/* ---------- Normalidade ---------- */
+async function runNormal(pid) {
+  requireData();
+  const col = fv(pid, 'col');
+  const r = await callPy('py_normal', { col, alpha: getAlpha() });
+  mkChart(pid + '-chart-1', {
+    type: 'scatter',
+    data: { datasets: [
+      { label: 'Observações', data: r.points.map(([x, y]) => ({ x, y })), backgroundColor: C.teal, pointRadius: 3, showLine: false },
+      { label: 'Reta normal', data: r.line.map(([x, y]) => ({ x, y })), showLine: true, borderColor: C.red, pointRadius: 0 }
+    ] },
+    options: { plugins: { legend: { position: 'bottom' } }, scales: { x: { type: 'linear', title: axisTitle('Quantis teóricos (normal padrão)') }, y: { title: axisTitle(col) } } }
+  });
+  setMetrics(pid, [['N', fmtInt(r.n)], ['A² (Anderson-Darling)', fmt(r.ad, 3)], ['p (AD)', fmtP(r.ad_p), r.normal ? 'ok' : 'bad'], ['W (Shapiro-Wilk)', fmt(r.sw, 4)], ['p (SW)', fmtP(r.sw_p)], ['R² do gráfico Q-Q', fmt(r.r2, 4)]]);
+  interp(pid, r.normal ? 'ok' : 'bad', r.normal ? 'Normalidade não rejeitada' : 'Normalidade rejeitada', [
+    escapeHtml(normText2(r, r.alpha)),
+    r.normal ? 'Pode-se usar a análise de capabilidade normal (se o processo também for estável).' : 'Use a “Capabilidade (não normal)”. Antes, verifique se a não normalidade vem de outliers, mistura de fontes ou instabilidade.',
+    'No gráfico, pontos alinhados à reta indicam normalidade; curvas em “S” indicam caudas pesadas/leves e curvatura indica assimetria.'
+  ]);
+}
+
+/* ---------- Outliers ---------- */
+async function runOutl(pid) {
+  requireData();
+  const col = fv(pid, 'col');
+  const r = await callPy('py_outl', { col, kiqr: fnum(pid, 'kiqr'), khamp: fnum(pid, 'khamp'), alpha: getAlpha() });
+  const fl = new Set(r.flagged);
+  const n = r.values.length;
+  const cst = v => r.values.map(() => v);
+  mkChart(pid + '-chart-1', {
+    type: 'line',
+    data: { labels: r.rows.map(String), datasets: [
+      { label: col, data: r.values, borderColor: C.gray, borderWidth: 1, pointRadius: r.values.map((_, i) => (fl.has(i) ? 6 : 2.5)), pointBackgroundColor: r.values.map((_, i) => (fl.has(i) ? C.red : C.teal)), tension: 0 },
+      { label: 'Cerca inferior (IQR)', data: cst(r.iqr.lo), borderColor: C.orange, borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 },
+      { label: 'Cerca superior (IQR)', data: cst(r.iqr.hi), borderColor: C.orange, borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 }
+    ] },
+    options: { plugins: { legend: { position: 'bottom' } }, scales: { x: { title: axisTitle('Linha do arquivo'), ticks: { maxTicksLimit: 12, autoSkip: true } }, y: { title: axisTitle(col) } } }
+  });
+  setMetrics(pid, [['N', fmtInt(n)], ['Pontos sinalizados', String(r.flagged.length), r.flagged.length ? 'warn' : 'ok'], [`IQR (k=${fmt(r.iqr.k, 1)})`, String(r.iqr.n)], [`Hampel (k=${fmt(r.hampel.k, 1)})`, r.hampel.lo === null ? 'n/d' : String(r.hampel.n)], ['Grubbs', String(r.grubbs.n)]]);
+  const ck = v => (v ? '✓' : '');
+  if (r.table.length) setTable(pid, tbl(['Linha', 'Valor', 'IQR', 'Hampel', 'Grubbs'], r.table.map(t => [fmtInt(t.row), fmtSig(t.value, 6), ck(t.iqr), ck(t.hampel), ck(t.grubbs)])));
+  interp(pid, r.flagged.length ? 'warn' : 'ok', r.flagged.length ? `${r.flagged.length} ponto(s) suspeito(s)` : 'Sem outliers detectados', [
+    'IQR e Hampel são robustos e não exigem normalidade; Grubbs assume normalidade' + (r.normality.normal === false ? ' — aqui rejeitada, portanto priorize IQR/Hampel.' : '.'),
+    'Pontos marcados por mais de um método são os mais suspeitos.',
+    'Não exclua pontos automaticamente: investigue (erro de digitação, falha de medição, causa especial real) e documente a decisão antes de recalcular a capabilidade.'
+  ]);
+}
+
+/* ---------- Estratificação ---------- */
+async function runStrat(pid) {
+  requireData();
+  const col = fv(pid, 'col');
+  const r = await callPy('py_strat', { col, fa: fv(pid, 'fa'), fb: fv(pid, 'fb'), alpha: getAlpha() });
+  drawBox(pid + '-chart-1', r.boxes, col);
+  const sets = [];
+  r.series.forEach((s, i) => {
+    const c = PALETTE[i % PALETTE.length];
+    sets.push({ label: '· ' + s.name, data: s.points.map(([x, y]) => ({ x, y })), showLine: false, backgroundColor: c + '55', borderColor: c + '55', pointRadius: 2.5 });
+    sets.push({ label: r.levels_b.length ? s.name : 'Média', data: s.means.map(([x, y]) => ({ x, y })), showLine: true, borderColor: c, backgroundColor: c, pointRadius: 4, tension: 0 });
+  });
+  mkChart(pid + '-chart-2', {
+    type: 'scatter', data: { datasets: sets },
+    options: { plugins: { legend: { position: 'bottom', labels: { filter: it => !it.text.startsWith('·') } }, title: { display: true, text: r.levels_b.length ? 'Multi-vari (cor = Fator B)' : 'Valores individuais e médias' } },
+      scales: { x: { type: 'linear', min: -0.5, max: r.levels_a.length - 0.5, ticks: { stepSize: 1, callback: v => (Number.isInteger(v) && r.levels_a[v] !== undefined ? r.levels_a[v] : '') }, title: axisTitle('Fator A') }, y: { title: axisTitle(col) } } }
+  });
+  const t = r.tests;
+  setMetrics(pid, [['N', fmtInt(r.n)], ['Níveis do fator A', String(r.levels_a.length)], r.levels_b.length ? ['Níveis do fator B', String(r.levels_b.length)] : null, ['Média geral', fmtSig(r.overall_mean, 5)],
+    t && t.anova_p !== undefined ? ['p (ANOVA)', fmtP(t.anova_p), t.anova_p < r.alpha ? 'warn' : 'ok'] : null, t && t.levene_p !== undefined ? ['p (Levene)', fmtP(t.levene_p), t.levene_p < r.alpha ? 'warn' : 'ok'] : null]);
+  setTable(pid, tbl(['Fator A', 'Fator B', 'N', 'Média', 'Desvio padrão', 'Mediana', 'Mín', 'Máx'], r.table.map(x => [escapeHtml(x.a), x.b === null ? '(todos)' : escapeHtml(x.b), fmtInt(x.n), fmtSig(x.mean, 5), fmtSig(x.sd, 4), fmtSig(x.median, 5), fmtSig(x.min, 5), fmtSig(x.max, 5)])));
+  const bul = [];
+  if (t && t.anova_p !== undefined) {
+    bul.push(`Médias entre os níveis do fator A: ANOVA p = ${fmtP(t.anova_p)}, Kruskal-Wallis p = ${fmtP(t.kruskal_p)} → ${t.anova_p < r.alpha ? '<strong>há diferença</strong> de localização entre os níveis' : 'sem evidência de diferença de localização'}.`);
+    bul.push(`Variabilidade entre os níveis: Levene p = ${fmtP(t.levene_p)} → ${t.levene_p < r.alpha ? '<strong>dispersões diferentes</strong>' : 'sem evidência de dispersões diferentes'}.`);
+  } else bul.push('Poucas observações por nível para testar diferenças.');
+  bul.push('Este é um diagnóstico exploratório: fatores com diferenças relevantes são candidatos a causas na fase Analyze.');
+  interp(pid, t && (t.anova_p < r.alpha || t.levene_p < r.alpha) ? 'warn' : 'info', t && (t.anova_p < r.alpha || t.levene_p < r.alpha) ? 'Fonte de variação identificada' : 'Sem diferenças evidentes', bul);
+}
+
+/* ---------- Pareto ---------- */
+async function runPareto(pid) {
+  requireData();
+  const col = fv(pid, 'col');
+  const r = await callPy('py_pareto', { col, weight: fv(pid, 'weight'), minpct: fnum(pid, 'minpct'), cutoff: fnum(pid, 'cutoff') });
+  mkChart(pid + '-chart-1', {
+    type: 'bar',
+    data: { labels: r.labels, datasets: [
+      { type: 'bar', label: r.weighted ? 'Total ponderado' : 'Frequência', data: r.values, backgroundColor: r.labels.map((_, i) => (i < r.vital ? C.teal : '#9DB8BE')), yAxisID: 'y', order: 2 },
+      { type: 'line', label: '% acumulado', data: r.cum, borderColor: C.orange, backgroundColor: C.orange, pointRadius: 3, yAxisID: 'y1', order: 1, tension: 0 },
+      { type: 'line', label: `${fmt(r.cutoff, 0)}%`, data: r.labels.map(() => r.cutoff), borderColor: C.red, borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', order: 0 }
+    ] },
+    options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, title: axisTitle(r.weighted ? 'Total ponderado' : 'Frequência') }, y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: axisTitle('% acumulado') }, x: { ticks: { maxRotation: 45 } } } }
+  });
+  setMetrics(pid, [['Total', fmtSig(r.total, 6)], ['Categorias', String(r.n_categories)], ['Poucos vitais', `${r.vital} (${fmt(r.cum[r.vital - 1], 1)}%)`, 'ok'], ['Ausentes ignorados', fmtInt(r.missing)], r.grouped ? ['Agrupadas em “Outros”', String(r.grouped)] : null]);
+  setTable(pid, tbl(['Categoria', r.weighted ? 'Total ponderado' : 'Frequência', '%', '% acumulado'], r.labels.map((l, i) => ({ cells: [escapeHtml(l), fmtSig(r.values[i], 6), fmt(r.pct[i], 1), fmt(r.cum[i], 1)], _cls: i < r.vital ? 'row-vital' : '' }))));
+  const vitals = r.labels.slice(0, r.vital).map(l => `«${escapeHtml(l)}»`).join(', ');
+  interp(pid, 'info', 'Priorização', [
+    `As <strong>${r.vital} principais categoria(s)</strong> — ${vitals} — respondem por ${fmt(r.cum[r.vital - 1], 1)}% do total (${r.n_categories} categorias no total).`,
+    r.vital / r.n_categories > 0.5 ? 'O efeito Pareto é fraco: os problemas estão distribuídos. Considere ponderar por custo/tempo ou estratificar por outro critério.' : 'Concentre o foco de melhoria nas categorias destacadas.',
+    r.weighted ? null : 'Frequência nem sempre equivale a impacto: repita ponderando por custo, tempo ou severidade.'
+  ]);
+}
+
+/* ================= Ferramentas — grupo B ================= */
+const ciTxt = (a, d) => (a ? `${fmt(a[0], d === undefined ? 3 : d)} a ${fmt(a[1], d === undefined ? 3 : d)}` : '—');
+
+/* ---------- Run chart ---------- */
+async function runRunChart(pid) {
+  requireData();
+  const col = fv(pid, 'col'), order = fv(pid, 'order');
+  const r = await callPy('py_run', { col, order, alpha: getAlpha() });
+  const n = r.values.length;
+  mkChart(pid + '-chart-1', {
+    type: 'line',
+    data: { labels: r.labels, datasets: [
+      { label: col, data: r.values, borderColor: C.teal, backgroundColor: C.teal, pointRadius: n > 150 ? 2 : 3, borderWidth: 1.5, tension: 0 },
+      { label: 'Mediana', data: r.values.map(() => r.median), borderColor: C.red, borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5 }
+    ] },
+    options: { plugins: { legend: { position: 'bottom' } }, scales: { x: { title: axisTitle(order || 'Observação'), ticks: { maxTicksLimit: 12, autoSkip: true } }, y: { title: axisTitle(col) } } }
+  });
+  const a = r.about_median, u = r.up_down, k = r.kendall, al = r.alpha;
+  setMetrics(pid, [
+    ['N', fmtInt(r.n)], ['Mediana', fmtSig(r.median, 5)],
+    a ? ['Corridas em torno da mediana', `${a.runs} (esp. ${fmt(a.expected, 1)})`] : null,
+    a ? ['p agrupamento', fmtP(a.p_cluster), a.p_cluster < al ? 'bad' : 'ok'] : null, a ? ['p mistura', fmtP(a.p_mix), a.p_mix < al ? 'bad' : 'ok'] : null,
+    u ? ['Corridas ↑/↓', `${u.runs} (esp. ${fmt(u.expected, 1)})`] : null,
+    u ? ['p tendência', fmtP(u.p_trend), u.p_trend < al ? 'bad' : 'ok'] : null, u ? ['p oscilação', fmtP(u.p_osc), u.p_osc < al ? 'bad' : 'ok'] : null,
+    k ? ['τ de Kendall (tendência)', `${fmt(k.tau, 3)} (p ${fmtP(k.p) === '< 0,0001' ? '' : '= '}${fmtP(k.p)})`, k.p < al ? 'bad' : 'ok'] : null
+  ]);
+  const found = [];
+  if (a && a.p_cluster < al) found.push('<strong>agrupamentos</strong> (valores altos/baixos em blocos — mudanças de lote, turno, ajuste)');
+  if (a && a.p_mix < al) found.push('<strong>misturas</strong> (alternância excessiva em torno da mediana — duas fontes ou fluxos misturados)');
+  if (u && u.p_trend < al) found.push('<strong>tendência</strong> (deriva — desgaste, aquecimento, degradação)');
+  if (u && u.p_osc < al) found.push('<strong>oscilação</strong> (variação sistemática para cima e para baixo — sobreajuste, ciclos)');
+  if (k && k.p < al && !(u && u.p_trend < al)) found.push('<strong>tendência monotônica</strong> (Kendall)');
+  interp(pid, found.length ? 'bad' : 'ok', found.length ? 'Padrões não aleatórios' : 'Sem padrões não aleatórios', [
+    found.length ? `Foram detectados: ${found.join('; ')}.` : `Nenhum dos testes indica padrão não aleatório (α = ${fmt(al, 2)}).`,
+    'Um padrão significa causa especial atuando: o processo não é estável e a capabilidade calculada seria enganosa.',
+    r.n < 30 ? 'Poucos pontos: os testes têm baixo poder.' : null,
+    order ? null : 'Sem coluna de tempo: a sequência do arquivo foi tratada como ordem cronológica.'
+  ]);
+}
+
+/* ---------- Cartas de controle ---------- */
+function drawControl(chartId, o) {
+  const fl = new Set(o.flagged), n = o.values.length;
+  const ds = [
+    { label: o.name, data: o.values, borderColor: C.teal, backgroundColor: C.teal, pointBackgroundColor: o.values.map((_, i) => (fl.has(i) ? C.red : C.teal)), pointBorderColor: o.values.map((_, i) => (fl.has(i) ? C.red : C.teal)), pointRadius: o.values.map((_, i) => (fl.has(i) ? 6 : (n > 120 ? 2 : 3.5))), borderWidth: 1.5, tension: 0 },
+    { label: 'LSC (+3σ)', data: o.ucl, borderColor: C.red, borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5, stepped: !!o.varying },
+    { label: 'LC', data: o.cl, borderColor: C.gray, pointRadius: 0, borderWidth: 1.5, stepped: !!o.varying },
+    { label: 'LIC (−3σ)', data: o.lcl, borderColor: C.red, borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5, stepped: !!o.varying }
+  ];
+  if (o.sig) {
+    [['+2σ', o.sig.u2, C.orange], ['−2σ', o.sig.l2, C.orange], ['+1σ', o.sig.u1, C.green], ['−1σ', o.sig.l1, C.green]].forEach(([l, d, c]) =>
+      ds.push({ label: l, data: d, borderColor: c + 'AA', borderDash: [2, 3], pointRadius: 0, borderWidth: 1, stepped: !!o.varying }));
+  }
+  mkChart(chartId, { type: 'line', data: { labels: o.labels, datasets: ds }, options: { plugins: { legend: { position: 'bottom' }, title: { display: !!o.title, text: o.title || '' } }, scales: { x: { title: axisTitle(o.xlabel), ticks: { maxTicksLimit: 14, autoSkip: true } }, y: { title: axisTitle(o.ylabel) } } } });
+}
+
+async function runCtrl(pid) {
+  requireData();
+  const kind = fv(pid, 'chart'), rules = fmulti(pid, 'rules'), order = fv(pid, 'order');
+  const r = await callPy('py_ctrl', { chart: kind, col: fv(pid, 'col'), subgroup: fnum(pid, 'subgroup'), size_col: fv(pid, 'size_col'), size_const: fnum(pid, 'size_const'), order, rules });
+  const isSub = kind === 'xbarr' || kind === 'xbars';
+  const NAMES = { imr: 'Carta de valores individuais (I)', xbarr: 'Carta X̄', xbars: 'Carta X̄', p: 'Carta P', np: 'Carta NP', c: 'Carta C', u: 'Carta U' };
+  drawControl(pid + '-chart-1', { name: r.ylabel, values: r.values, ucl: r.ucl, cl: r.cl, lcl: r.lcl, flagged: r.flagged, labels: r.labels, varying: r.varying, sig: fchk(pid, 'zones') ? r.sig : null, title: NAMES[kind], xlabel: isSub ? 'Subgrupo' : (order || 'Observação'), ylabel: r.ylabel });
+  if (r.chart2) {
+    const c2 = r.chart2;
+    drawControl(pid + '-chart-2', { name: c2.title, values: c2.values, ucl: c2.ucl, cl: c2.cl, lcl: c2.lcl, flagged: c2.flags, labels: c2.labels, varying: false, sig: null, title: 'Carta ' + c2.title, xlabel: isSub ? 'Subgrupo' : (order || 'Observação'), ylabel: c2.title });
+  }
+  const p = r.params, cards = [['Pontos plotados', fmtInt(r.k)]];
+  Object.keys(p).forEach(k => cards.push([k, typeof p[k] === 'number' ? fmtSig(p[k], 5) : String(p[k])]));
+  cards.push(['LSC', r.varying ? 'variável' : fmtSig(r.ucl[0], 5)], ['LIC', r.varying ? 'variável' : fmtSig(r.lcl[0], 5)],
+    ['Sinais detectados', String(r.n_violations), r.n_violations ? 'bad' : 'ok'], ['Estável?', r.stable ? 'Sim' : 'Não', r.stable ? 'ok' : 'bad']);
+  setMetrics(pid, cards);
+  if (r.violations.length) {
+    setTable(pid, `<h5>Sinais de causas especiais${r.n_violations > r.violations.length ? ` (primeiros ${r.violations.length} de ${r.n_violations})` : ''}</h5>` +
+      tbl(['Carta', 'Ponto', 'Rótulo', 'Linha no arquivo', 'Teste', 'Valor'], r.violations.slice(0, 100).map(v => [escapeHtml(v.chart || 'Principal'), fmtInt(v.obs), escapeHtml(v.label || ''), fmtInt(v.row), `${v.rule}: ${RULE_TXT[v.rule] || 'limite'}`, fmtSig(v.value, 5)])));
+  }
+  const byRule = Object.keys(r.by_rule).filter(k => r.by_rule[k] > 0).map(k => `teste ${k} (${RULE_TXT[k]}): ${r.by_rule[k]}`);
+  interp(pid, r.stable ? 'ok' : 'bad', r.stable ? 'Processo estável' : 'Causas especiais presentes', [
+    r.stable ? `Nenhum sinal nos testes selecionados (${rules.join(', ') || '—'}): o processo é estatisticamente estável — pode-se avançar para a capabilidade.` :
+      `${r.n_violations} sinal(is): ${byRule.join('; ') || 'ver carta secundária'}. Investigue cada ponto (turno, matéria-prima, ajuste, medição) antes de calcular capabilidade.`,
+    'Só remova pontos dos limites se houver causa especial identificada e corrigida — nunca apenas para “melhorar” a carta.',
+    r.k < 25 ? `Apenas ${r.k} pontos: limites de controle instáveis (recomendado ≥ 20–25 subgrupos).` : null,
+    kind === 'imr' && !order ? 'Sem coluna de tempo: usada a ordem do arquivo.' : null,
+    ['p', 'np', 'c', 'u'].includes(kind) ? 'Cartas de atributos assumem binomial/Poisson; com superdispersão (muitos pontos fora dos limites) considere a carta de valores individuais sobre a proporção.' : null
+  ]);
+}
+
+/* ---------- Capabilidade (normal) ---------- */
+function specLines(r) {
+  const v = [];
+  if (r.lsl !== null) v.push({ v: r.lsl, color: C.red, label: `LIE = ${fmtSig(r.lsl, 5)}` });
+  if (r.usl !== null) v.push({ v: r.usl, color: C.red, label: `LSE = ${fmtSig(r.usl, 5)}` });
+  if (r.target !== null && r.target !== undefined) v.push({ v: r.target, color: C.green, dash: [6, 4], label: `Alvo = ${fmtSig(r.target, 5)}` });
+  return v;
+}
+
+async function runCap(pid) {
+  requireData();
+  const col = fv(pid, 'col'), unit = fv(pid, 'unit').trim();
+  const r = await callPy('py_cap', { col, lsl: fnum(pid, 'lsl'), usl: fnum(pid, 'usl'), target: fnum(pid, 'target'), subgroup: fnum(pid, 'subgroup') || 1, order: fv(pid, 'order'), alpha: getAlpha(), shift: getShift() });
+  const w = r.within, o = r.overall, cw = cpkClass(w.cpk), co = cpkClass(o.ppk);
+  setMetrics(pid, [
+    w.cp !== null ? ['Cp', fmt(w.cp, 3)] : null, ['Cpk', fmt(w.cpk, 3), cw.lvl],
+    o.pp !== null ? ['Pp', fmt(o.pp, 3)] : null, ['Ppk', fmt(o.ppk, 3), co.lvl],
+    r.cpm !== null ? ['Cpm', fmt(r.cpm, 3)] : null,
+    ['PPM observado', fmtPPM(r.obs.ppm), r.obs.total ? 'warn' : 'ok'], ['PPM esperado (overall)', fmtPPM(r.exp_overall.ppm)],
+    ['Z.Bench (overall)', fmt(r.z_bench_overall, 2)], [`Nível sigma${r.shift ? ' (+1,5σ)' : ''}`, fmt(r.sigma_level, 2)]
+  ]);
+  const ov = { vlines: specLines(r).concat([{ v: r.mean, color: C.gray, dash: [2, 3], width: 1.5, label: 'Média' }]), curves: [
+    { points: r.hist.curve_overall, color: C.orange, label: 'Global (σ overall)' }, { points: r.hist.curve_within, color: C.purple, dash: [6, 4], label: 'Dentro (σ within)' }] };
+  drawHist(pid + '-chart-1', r.hist, ov, col + (unit ? ` (${unit})` : ''));
+  setAlerts(pid, r.warnings);
+  const both = r.lsl !== null && r.usl !== null;
+  setTable(pid, `<h5>Índices de capabilidade (σ within = ${fmtSig(r.sd_within, 5)}; σ overall = ${fmtSig(r.sd_overall, 5)})</h5>` + tbl(['Índice', 'Potencial (within)', `IC ${confPct()}`, 'Desempenho (overall)', `IC ${confPct()}`], [
+    both ? ['Cp | Pp', fmt(w.cp, 3), ciTxt(w.cp_ci), fmt(o.pp, 3), ciTxt(o.pp_ci)] : null,
+    r.usl !== null ? ['CPU | PPU', fmt(w.cpu, 3), '', fmt(o.ppu, 3), ''] : null, r.lsl !== null ? ['CPL | PPL', fmt(w.cpl, 3), '', fmt(o.ppl, 3), ''] : null,
+    ['Cpk | Ppk', fmt(w.cpk, 3), ciTxt(w.cpk_ci), fmt(o.ppk, 3), ciTxt(o.ppk_ci)]
+  ].filter(Boolean)));
+  setTable(pid, '<h5>Desempenho esperado e observado (PPM)</h5>' + tbl(['', '< LIE', '> LSE', 'Total'], [
+    ['Observado', fmtPPM(r.obs.ppm_lo), fmtPPM(r.obs.ppm_hi), fmtPPM(r.obs.ppm)],
+    ['Esperado — within', fmtPPM(r.exp_within.ppm_lo), fmtPPM(r.exp_within.ppm_hi), fmtPPM(r.exp_within.ppm)],
+    ['Esperado — overall', fmtPPM(r.exp_overall.ppm_lo), fmtPPM(r.exp_overall.ppm_hi), fmtPPM(r.exp_overall.ppm)]]), '2');
+  const premOk = r.normality.normal !== false && r.stability.stable !== false;
+  const lvl = premOk ? cw.lvl : (cw.lvl === 'ok' ? 'warn' : cw.lvl);
+  const head = `Processo ${cw.txt}` + (premOk ? '' : ' — com ressalvas');
+  const b = [
+    `<strong>Cpk = ${fmt(w.cpk, 3)}</strong> (${cw.txt}; potencial de curto prazo) e <strong>Ppk = ${fmt(o.ppk, 3)}</strong> (${co.txt}; desempenho global). Meta usual: Cpk ≥ 1,33; ≥ 1,67 para características críticas.`,
+    both && w.cp !== null && w.cpk < 0.9 * w.cp ? `Cpk bem menor que Cp (${fmt(w.cpk, 2)} vs ${fmt(w.cp, 2)}): o processo está <strong>descentrado</strong>; ajustar a média (${fmtSig(r.mean, 5)}) para o centro da especificação elevaria o Cpk até ≈ Cp.` : null,
+    o.ppk < 0.9 * w.cpk ? `Ppk menor que Cpk: há variação entre subgrupos/tempo além da variação de curto prazo (deriva ou instabilidade).` : null,
+    `PPM esperado (overall) = ${fmtPPM(r.exp_overall.ppm)}; observado = ${fmtPPM(r.obs.ppm)} (${r.obs.total} de ${r.n} peças fora).`,
+    `Z.Bench = ${fmt(r.z_bench_overall, 2)}; nível sigma = ${fmt(r.sigma_level, 2)}${r.shift ? ' (Z.Bench + deslocamento de 1,5σ)' : ' (sem deslocamento)'}.`,
+    `<em>Premissas:</em> normalidade ${verdictLine(r.normality.normal, 'não rejeitada', 'rejeitada')} (AD p = ${fmtP(r.normality.ad_p)}); estabilidade ${verdictLine(r.stability.stable, 'sem sinais', 'com sinais de instabilidade')}; n = ${r.n}.`,
+    `Variação within estimada por ${escapeHtml(r.method_within)}.`
+  ];
+  interp(pid, lvl, head, b);
+  baseline['cap:' + col] = { tool: 'Capabilidade (normal)', variable: col, unit, n: r.n, mean: r.mean, lsl: r.lsl, usl: r.usl, target: r.target, cp: w.cp, cpk: w.cpk, pp: o.pp, ppk: o.ppk, ppm: r.exp_overall.ppm, ppm_obs: r.obs.ppm, sigma: r.sigma_level, normal: r.normality.normal, stable: r.stability.stable, verdict: head, lvl };
+}
+
+/* ---------- Capabilidade (não normal) ---------- */
+async function runCapNN(pid) {
+  requireData();
+  const col = fv(pid, 'col'), unit = fv(pid, 'unit').trim();
+  const r = await callPy('py_capnn', { col, lsl: fnum(pid, 'lsl'), usl: fnum(pid, 'usl'), method: fv(pid, 'method'), order: fv(pid, 'order'), alpha: getAlpha(), shift: getShift() });
+  const cp = cpkClass(r.ppk);
+  setMetrics(pid, [
+    r.pp !== null ? ['Pp', fmt(r.pp, 3)] : null, ['Ppk', fmt(r.ppk, 3), cp.lvl],
+    r.cp !== null && r.cp !== undefined ? ['Cp (within)', fmt(r.cp, 3)] : null, r.cpk !== null && r.cpk !== undefined ? ['Cpk (within)', fmt(r.cpk, 3)] : null,
+    ['PPM observado', fmtPPM(r.obs.ppm), r.obs.total ? 'warn' : 'ok'], ['PPM esperado', fmtPPM(r.exp.ppm)], ['Z.Bench', fmt(r.exp.z, 2)], [`Nível sigma${r.shift ? ' (+1,5σ)' : ''}`, fmt(r.sigma_level, 2)]
+  ]);
+  drawHist(pid + '-chart-1', r.hist, { vlines: specLines(r), curves: [{ points: r.curve, color: C.orange, label: r.method_label.split(' — ')[0].split(' (')[0] }] }, col + (unit ? ` (${unit})` : ''));
+  setAlerts(pid, r.warnings);
+  if (r.candidates.length) {
+    setTable(pid, '<h5>Distribuições candidatas (ranking por AIC — menor é melhor)</h5>' + tbl(['Distribuição', 'AIC', 'KS D', 'KS p (aprox.)', 'Parâmetros', 'Usada'],
+      r.candidates.map(c => ({ cells: [escapeHtml(c.label), fmt(c.aic, 1), fmt(c.ks_d, 4), fmtP(c.ks_p), c.params.map(v => fmtSig(v, 4)).join('; '), c.used ? '✓' : ''], _cls: c.used ? 'row-vital' : '' }))));
+  }
+  const b = [
+    `Método: <strong>${escapeHtml(r.method_label)}</strong>.`,
+    `<strong>Ppk = ${fmt(r.ppk, 3)}</strong> (${cp.txt})${r.pp !== null ? `; Pp = ${fmt(r.pp, 3)}` : ''}. PPM esperado = ${fmtPPM(r.exp.ppm)}; observado = ${fmtPPM(r.obs.ppm)}.`,
+    r.method === 'boxcox' ? `Após a transformação (λ = ${fmt(r.lambda, 3)}) a normalidade ${r.transformed_normality.normal ? 'não foi rejeitada' : 'ainda é rejeitada'} (AD p = ${fmtP(r.transformed_normality.ad_p)}).` :
+      `Índices pelo método dos percentis: Pp usa o intervalo 0,135%–99,865% da distribuição ajustada e Ppk usa a mediana como referência (${fmtSig(r.pctl.lo, 5)} / ${fmtSig(r.pctl.med, 5)} / ${fmtSig(r.pctl.hi, 5)}).`,
+    r.normality.normal ? 'Os dados brutos não rejeitam normalidade: a “Capabilidade (normal)” também seria adequada.' : null,
+    'Índices “within” (Cp/Cpk) não se aplicam a distribuições ajustadas pelo método dos percentis; use Pp/Ppk e confirme a estabilidade na carta de controle.'
+  ];
+  interp(pid, cp.lvl, `Desempenho ${cp.txt}`, b);
+  baseline['capnn:' + col] = { tool: 'Capabilidade (não normal)', variable: col, unit, n: r.n, mean: r.mean, lsl: r.lsl, usl: r.usl, target: null, cp: r.cp, cpk: r.cpk, pp: r.pp, ppk: r.ppk, ppm: r.exp.ppm, ppm_obs: r.obs.ppm, sigma: r.sigma_level, normal: r.normality.normal, stable: null, verdict: `Desempenho ${cp.txt}`, lvl: cp.lvl, method: r.method_label };
+}
+
+/* ---------- Atributos ---------- */
+function parseSteps(text) {
+  const num = (s, l) => {
+    const v = parseNumberStr(s, detectDecimal([s], 'auto'));
+    if (!Number.isFinite(v)) throw new Error(`Valor inválido «${s}» na linha «${l}».`);
+    return v;
+  };
+  return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
+    const p = l.split(/[;\t]/).map(s => s.trim());
+    if (p.length < 3) throw new Error(`Linha inválida: «${l}». Use: nome; unidades; aprovadas.`);
+    return [p[0], num(p[1], l), num(p[2], l)];
+  });
+}
+
+async function runAttr(pid) {
+  const mode = fv(pid, 'mode'), alpha = getAlpha(), shift = getShift();
+  const sigTxt = s => (s === null ? 'n/d' : fmt(s, 2));
+  let args = { mode, alpha, shift }, res;
+  if (mode === 'defective') { requireData(); args = Object.assign(args, { col: fv(pid, 'col'), value: fv(pid, 'value') }); }
+  else if (mode === 'defects') { requireData(); args = Object.assign(args, { col: fv(pid, 'dcol'), opps: fnum(pid, 'opps') || 1 }); }
+  else args.steps = parseSteps(fv(pid, 'steps'));
+  res = await callPy('py_attr', args);
+  const scale = 'Referência (com deslocamento de 1,5σ): 3σ ≈ 66.807 DPMO; 4σ ≈ 6.210; 5σ ≈ 233; 6σ ≈ 3,4.';
+  const grid = (labels, vals, color, ylab) => mkChart(pid + '-chart-1', { type: 'bar', data: { labels, datasets: [{ label: ylab, data: vals, backgroundColor: color }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, title: axisTitle(ylab) } } } });
+  if (mode === 'defective') {
+    setMetrics(pid, [['Unidades', fmtInt(res.n)], ['Defeituosos', fmtInt(res.defects), res.defects ? 'warn' : 'ok'], ['% defeituosos', fmt(res.p * 100, 3) + '%'], ['DPMO', fmtPPM(res.dpmo)], ['Rendimento', fmt(res.yield, 3) + '%'], [`Nível sigma${shift ? ' (+1,5σ)' : ''}`, sigTxt(res.sigma)]]);
+    grid(res.chart.labels, res.chart.values, [C.teal, C.red], 'Unidades');
+    setTable(pid, tbl(['Métrica', 'Estimativa', `IC ${confPct()} (exato)`], [['Proporção de defeituosos', fmt(res.p * 100, 3) + '%', `${fmt(res.ci_p[0] * 100, 3)}% a ${fmt(res.ci_p[1] * 100, 3)}%`], ['DPMO', fmtPPM(res.dpmo), `${fmtPPM(res.ci_dpmo[0])} a ${fmtPPM(res.ci_dpmo[1])}`], ['Nível sigma', sigTxt(res.sigma), `${sigTxt(res.sigma_worst)} (pior) a ${sigTxt(res.sigma_best)}`]]));
+    interp(pid, 'info', `Nível sigma ${sigTxt(res.sigma)}`, [
+      res.defects === 0 ? `Nenhum defeituoso em ${res.n} unidades: o sigma real é desconhecido. No pior caso plausível (limite superior do IC) o nível sigma seria ≥ ${sigTxt(res.sigma_worst)}.` : `${res.defects} defeituosos em ${res.n} (${fmt(res.p * 100, 2)}%) → DPMO = ${fmtPPM(res.dpmo)}.`,
+      res.n < 300 ? 'Amostra pequena para eventos raros: o IC é muito largo — colete mais dados.' : null, scale]);
+    baseline['attr:' + fv(pid, 'col')] = { tool: 'Atributos (defeituosos)', variable: fv(pid, 'col'), unit: '', n: res.n, dpmo: res.dpmo, ppm: res.dpmo, sigma: res.sigma, verdict: `DPMO ${fmtPPM(res.dpmo)}`, lvl: 'info' };
+  } else if (mode === 'defects') {
+    setMetrics(pid, [['Unidades', fmtInt(res.n)], ['Defeitos totais', fmtInt(res.total)], ['DPU', fmt(res.dpu, 4)], ['DPO', fmt(res.dpo, 5)], ['DPMO', fmtPPM(res.dpmo)], ['Rendimento (Poisson)', fmt(res.yield_poisson, 2) + '%'], ['Unidades sem defeito', fmt(res.yield_obs, 1) + '%'], [`Nível sigma${shift ? ' (+1,5σ)' : ''}`, sigTxt(res.sigma)]]);
+    grid(res.chart.labels, res.chart.values, C.teal, 'Nº de unidades');
+    setTable(pid, tbl(['Métrica', 'Estimativa', `IC ${confPct()} (Poisson exato)`], [['DPU (defeitos por unidade)', fmt(res.dpu, 4), `${fmt(res.ci_dpu[0], 4)} a ${fmt(res.ci_dpu[1], 4)}`]]));
+    interp(pid, res.dispersion !== null && res.dispersion > 1.5 ? 'warn' : 'info', `DPMO ${fmtPPM(res.dpmo)}`, [
+      `${fmt(res.dpu, 3)} defeitos por unidade com ${fmt(res.opps, 0)} oportunidade(s) → DPMO = ${fmtPPM(res.dpmo)}; nível sigma ${sigTxt(res.sigma)}.`,
+      res.dispersion !== null && res.dispersion > 1.5 ? `Índice de dispersão = ${fmt(res.dispersion, 2)} (> 1): defeitos agrupados/superdispersos — o modelo de Poisson (rendimento esperado) é otimista; use o rendimento observado.` : null,
+      'Defina oportunidades de defeito de forma consistente e verificável; alterar a definição muda o DPMO sem mudar a qualidade.', scale]);
+    baseline['attr:' + fv(pid, 'dcol')] = { tool: 'Atributos (defeitos/unidade)', variable: fv(pid, 'dcol'), unit: '', n: res.n, dpmo: res.dpmo, ppm: res.dpmo, sigma: res.sigma, verdict: `DPU ${fmt(res.dpu, 3)}`, lvl: 'info' };
+  } else {
+    setMetrics(pid, [['RTY', fmt(res.rty, 2) + '%', res.rty < 90 ? 'warn' : 'ok'], ['Rendimento normalizado por etapa', fmt(res.normalized, 2) + '%'], ['DPMO equivalente', fmtPPM(res.dpmo)], [`Nível sigma${shift ? ' (+1,5σ)' : ''}`, sigTxt(res.sigma)], ['Etapa crítica', escapeHtml(res.worst)]]);
+    mkChart(pid + '-chart-1', { type: 'bar', data: { labels: res.chart.labels, datasets: [{ type: 'bar', label: 'FTY da etapa (%)', data: res.chart.fty, backgroundColor: C.teal }, { type: 'line', label: 'RTY acumulado (%)', data: res.chart.rty, borderColor: C.orange, backgroundColor: C.orange, tension: 0 }] }, options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { min: Math.max(0, Math.floor(Math.min(...res.chart.rty) - 5)), max: 100, title: axisTitle('%') } } } });
+    setTable(pid, tbl(['Etapa', 'Unidades', 'Aprovadas', 'FTY (%)', 'RTY acumulado (%)'], res.rows.map(x => [escapeHtml(x.name), fmtInt(x.units), fmtInt(x.good), fmt(x.fty, 2), fmt(x.rty_cum, 2)])));
+    interp(pid, res.rty < 90 ? 'warn' : 'info', `RTY = ${fmt(res.rty, 1)}%`, [
+      `O rendimento acumulado é o produto dos rendimentos de primeira passagem (FTY): ${res.rows.map(x => fmt(x.fty, 1) + '%').join(' × ')} = ${fmt(res.rty, 2)}%.`,
+      `A etapa com pior FTY é «${escapeHtml(res.worst)}»: maior potencial de ganho.`, 'Retrabalho “esconde” perdas no rendimento final; use aprovadas de primeira passagem (sem retrabalho).', scale]);
+    baseline['attr:rty'] = { tool: 'RTY por etapas', variable: 'RTY do processo', unit: '', n: res.rows[0].units, dpmo: res.dpmo, ppm: res.dpmo, sigma: res.sigma, verdict: `RTY ${fmt(res.rty, 1)}%`, lvl: 'info' };
+  }
+}
+
+/* ================= Relatório ================= */
+function canvasToPNG(cv) {
+  const t = document.createElement('canvas');
+  t.width = cv.width; t.height = cv.height;
+  const x = t.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, t.width, t.height);
+  x.drawImage(cv, 0, 0);
+  return t.toDataURL('image/png');
+}
+
+function panelHasResults(panel) {
+  const pid = panel.id.replace('panel-', '');
+  const m = $(pid + '-metrics'), i = $(pid + '-interp');
+  return !!((m && m.children.length) || (i && i.textContent.trim()));
+}
+
+function collectReportParams(panel) {
+  const out = [];
+  panel.querySelectorAll('.controls-row .field').forEach(f => {
+    if (f.classList.contains('hidden') || getComputedStyle(f).display === 'none') return;
+    const label = (f.querySelector('label') || {}).textContent || '';
+    let val = '';
+    const multi = f.querySelector('.multi');
+    const sel = f.querySelector('select'), ta = f.querySelector('textarea'), inp = f.querySelector('input');
+    if (multi) val = Array.from(multi.querySelectorAll('input:checked')).map(c => c.value).join(', ') || '—';
+    else if (sel) val = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    else if (ta) val = ta.value.split(/\r?\n/).filter(Boolean).join(' | ');
+    else if (inp && inp.type === 'checkbox') val = inp.checked ? 'Sim' : 'Não';
+    else if (inp) val = inp.value;
+    if (val !== '' && val !== '— nenhum —') out.push(`${label.trim()}: <strong>${escapeHtml(val)}</strong>`);
+  });
+  return out;
+}
+
+function buildToolReport(panel, number) {
+  const pid = panel.id.replace('panel-', '');
+  const clone = panel.cloneNode(true);
+  clone.removeAttribute('id'); clone.style.display = 'block';
+  const origCanvases = Array.from(panel.querySelectorAll('canvas'));
+  Array.from(clone.querySelectorAll('canvas')).forEach((cv, i) => {
+    const orig = origCanvases[i];
+    const box = cv.closest('.chart-box');
+    if (orig && window.__charts[orig.id] && box && box.style.display !== 'none') {
+      const img = document.createElement('img');
+      img.src = canvasToPNG(orig); img.alt = 'Gráfico'; img.className = 'rep-chart';
+      cv.replaceWith(img);
+      if (box) box.style.height = 'auto';
+    } else if (box) box.remove();
+  });
+  clone.querySelectorAll('select.type-override').forEach(s => { const sp = document.createElement('span'); sp.textContent = s.options[s.selectedIndex].text; s.replaceWith(sp); });
+  clone.querySelectorAll('.controls-row, .desc, h4, button, input, select, textarea').forEach(e => e.remove());
+  clone.querySelectorAll('.alerts:empty, .metrics-grid:empty, [id$="container"]:empty').forEach(e => e.remove());
+  clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+  const params = collectReportParams(panel);
+  return `<section class="rep-section"><h3>${number} · ${escapeHtml(TOOLS[pid].title)}</h3>` +
+    (params.length ? `<p class="rep-params">${params.join(' &nbsp;·&nbsp; ')}</p>` : '') + clone.innerHTML + '</section>';
+}
+
+const lvlIcon = { ok: '✔', warn: '▲', bad: '✖', info: '•' };
+function reportTable(rows, headers) {
+  return `<div class="tbl-wrap"><table class="result-table rep-table"><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+}
+
+function baselineSection() {
+  const keys = Object.keys(baseline);
+  if (!keys.length) return '';
+  const rows = keys.map(k => {
+    const b = baseline[k];
+    const spec = (b.lsl !== undefined && (b.lsl !== null || b.usl !== null)) ? `${b.lsl === null ? '—' : fmtSig(b.lsl, 5)} / ${b.usl === null ? '—' : fmtSig(b.usl, 5)}` : '—';
+    const tf = v => (v === null || v === undefined ? 'n/a' : (v ? 'Sim' : 'Não'));
+    return `<tr><td>${escapeHtml(b.variable)}${b.unit ? ' (' + escapeHtml(b.unit) + ')' : ''}</td><td>${escapeHtml(b.method || b.tool)}</td><td class="num">${fmtInt(b.n)}</td><td class="num">${b.mean === undefined ? '—' : fmtSig(b.mean, 5)}</td><td class="num">${spec}</td>` +
+      `<td class="num">${fmt(b.cp, 2)}</td><td class="num">${fmt(b.cpk, 2)}</td><td class="num">${fmt(b.pp, 2)}</td><td class="num">${fmt(b.ppk, 2)}</td><td class="num">${fmtPPM(b.ppm)}</td><td class="num">${fmt(b.sigma, 2)}</td>` +
+      `<td>${tf(b.normal)}</td><td>${tf(b.stable)}</td><td>${badge(b.lvl || 'info', b.verdict || '')}</td></tr>`;
+  });
+  return `<section class="rep-section"><h3>2 · Linha de base do processo</h3>` +
+    reportTable(rows, ['Variável', 'Método', 'N', 'Média', 'LIE / LSE', 'Cp', 'Cpk', 'Pp', 'Ppk', 'PPM esp.', 'Nível σ', 'Normal?', 'Estável?', 'Conclusão']) +
+    `<p class="rep-note">Nível sigma: ${getShift() ? 'Z.Bench + 1,5σ (convenção Seis Sigma)' : 'Z.Bench sem deslocamento'}. Cp/Cpk usam a variação de curto prazo (within); Pp/Ppk, a global.</p></section>`;
+}
+
+function msaSection() {
+  const keys = Object.keys(msaResults);
+  if (!keys.length) return '';
+  const rows = keys.map(k => { const m = msaResults[k]; return `<tr><td>${escapeHtml(m.kind)}</td><td>${escapeHtml(m.variable)}</td><td>${escapeHtml(m.result)}</td><td>${escapeHtml(m.criterion)}</td><td>${badge(m.lvl, m.verdict)}</td></tr>`; });
+  return `<section class="rep-section"><h3>3 · Validação do sistema de medição (MSA)</h3>` + reportTable(rows, ['Estudo', 'Variável', 'Resultado', 'Critério', 'Conclusão']) + '</section>';
+}
+
+function exitChecklist() {
+  const items = [];
+  const msa = Object.values(msaResults);
+  items.push(['Sistema de medição validado (MSA)', !msa.length ? ['warn', 'Não executado'] : msa.some(m => m.lvl === 'bad') ? ['bad', 'Reprovado — corrigir antes de prosseguir'] : msa.some(m => m.lvl === 'warn') ? ['warn', 'Marginal'] : ['ok', 'Aprovado']]);
+  const bl = Object.values(baseline);
+  const st = bl.filter(b => b.stable !== null && b.stable !== undefined);
+  items.push(['Estabilidade do processo', !st.length ? ['warn', 'Não avaliada (use Carta de controle / capabilidade)'] : st.some(b => b.stable === false) ? ['bad', 'Instável em ao menos uma variável'] : ['ok', 'Estável']]);
+  const nm = bl.filter(b => b.normal !== null && b.normal !== undefined);
+  items.push(['Distribuição avaliada (normalidade)', !nm.length ? ['warn', 'Não avaliada'] : nm.some(b => b.normal === false) ? ['warn', 'Não normal em ao menos uma variável — usar métodos adequados'] : ['ok', 'Compatível com a normal']]);
+  items.push(['Linha de base de capabilidade', !bl.length ? ['warn', 'Não estabelecida'] : bl.some(b => b.lvl === 'bad') ? ['bad', 'Estabelecida — desempenho insuficiente'] : bl.some(b => b.lvl === 'warn') ? ['warn', 'Estabelecida — desempenho marginal'] : ['ok', 'Estabelecida']]);
+  return `<section class="rep-section"><h3>Checklist de saída da fase Medir</h3>` +
+    reportTable(items.map(([n, [l, t]]) => `<tr><td>${n}</td><td>${badge(l, `${lvlIcon[l]} ${t}`)}</td></tr>`), ['Item', 'Situação']) + '</section>';
+}
+
+function dataSection() {
+  const numFmt = numericCols.length ? numericCols.map(c => `${escapeHtml(c)}: ${state.decimals[c] === ',' ? 'vírgula' : 'ponto'}`).join('; ') : '—';
+  const overrides = Object.keys(state.overrides).map(c => `${escapeHtml(c)} → ${TYPE_LABEL[state.overrides[c]]}`).join('; ') || 'nenhuma';
+  const alerts = Array.from(document.querySelectorAll('#eda-alerts .alert')).map(a => escapeHtml(a.textContent)).filter(t => !/Nenhum problema/.test(t));
+  const modeTxt = { auto: 'automático', dot: 'ponto', comma: 'vírgula' }[getDecimalMode()];
+  const rows = [
+    ['Arquivo', escapeHtml(state.fileName || '—')], ['Registros × colunas', `${fmtInt(state.nRows)} × ${columns.length}`],
+    ['Nível de significância (α)', fmt(getAlpha(), 3)], ['Deslocamento de 1,5σ', getShift() ? 'aplicado ao nível sigma' : 'não aplicado'],
+    ['Separador decimal', `${modeTxt}. Detectado por coluna — ${numFmt}`], ['Colunas reclassificadas manualmente', overrides],
+    ['Alertas de qualidade (EDA)', alerts.length ? '<ul>' + alerts.map(a => `<li>${a}</li>`).join('') + '</ul>' : (document.querySelector('#eda-alerts .alert') ? 'nenhum' : 'EDA não executada')]
+  ].map(([a, b]) => `<tr><td><strong>${a}</strong></td><td>${b}</td></tr>`);
+  return `<section class="rep-section"><h3>1 · Dados e premissas</h3><div class="tbl-wrap"><table class="result-table rep-table"><tbody>${rows.join('')}</tbody></table></div></section>`;
+}
+
+function openReportModal() {
+  const project = (($('project-name') || {}).value || '').trim() || 'Projeto DMAIC';
+  const panels = [];
+  GROUPS.forEach(g => g.tools.forEach(id => { const p = $('panel-' + id); if (p && panelHasResults(p)) panels.push(p); }));
+  let html = `<header class="rep-head"><div class="rep-kicker">DMAIC · Fase Medir</div><h2>${escapeHtml(project)}</h2><div class="rep-date">Relatório estatístico gerado em ${new Date().toLocaleString('pt-BR')}</div></header>`;
+  if (!panels.length && !Object.keys(baseline).length) {
+    html += '<p class="rep-note">Nenhuma análise executada ainda. Selecione as ferramentas, clique em “Executar” e gere o relatório novamente.</p>';
+  } else {
+    html += dataSection() + baselineSection() + msaSection();
+    panels.forEach((p, i) => { html += buildToolReport(p, `4.${i + 1}`); });
+    html += exitChecklist();
+  }
+  $('report-content').innerHTML = html;
+  $('report-modal').classList.add('open');
+  document.body.classList.add('modal-open');
+}
+function closeReportModal() { $('report-modal').classList.remove('open'); document.body.classList.remove('modal-open'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const c = $('btn-close-report'), p = $('btn-print');
+  if (c) c.addEventListener('click', closeReportModal);
+  if (p) p.addEventListener('click', () => window.print());
+  const m = $('report-modal');
+  if (m) m.addEventListener('click', e => { if (e.target === m) closeReportModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeReportModal(); });
+});
+
+
+</script>
+</body>
+</html>
